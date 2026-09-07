@@ -1369,9 +1369,6 @@ async function init() {
 
   try {
     if (!homeId) {
-      if (SUPABASE_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxd2NkdWV6aG1lc29kampwbGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTg2NzAsImV4cCI6MjEwNDM5NDY3MH0.JlKC99XxXSsIxNmzGzb0VGmHWSmqYlav55OPYlXLucU') {
-        throw new Error('SUPABASE_KEY not configured');
-      }
       const data = await sb('POST','humidity_homes',{},{'Prefer':'return=representation'});
       homeId = data[0].id;
       history.replaceState(null,'',`/?home=${homeId}`);
@@ -1401,20 +1398,6 @@ async function init() {
 
   } catch(e) {
     console.error('init:', e);
-    const isKeyPlaceholder = SUPABASE_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxd2NkdWV6aG1lc29kampwbGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTg2NzAsImV4cCI6MjEwNDM5NDY3MH0.JlKC99XxXSsIxNmzGzb0VGmHWSmqYlav55OPYlXLucU';
-    document.getElementById('loading-screen').innerHTML = `
-      <div style="text-align:center;padding:28px;max-width:320px">
-        <div style="font-size:42px;margin-bottom:14px">⚠️</div>
-        <div style="font-size:17px;font-weight:700;margin-bottom:10px">
-          ${isKeyPlaceholder?'Setup Required':'Connection Error'}
-        </div>
-        <div style="font-size:13px;color:rgba(232,238,255,.5);line-height:1.7;margin-bottom:22px">
-          ${isKeyPlaceholder
-            ?'Open <code>index.html</code> and replace <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxd2NkdWV6aG1lc29kampwbGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTg2NzAsImV4cCI6MjEwNDM5NDY3MH0.JlKC99XxXSsIxNmzGzb0VGmHWSmqYlav55OPYlXLucU</code> with your Supabase anon key.'
-            :'Failed to connect to Supabase. Check your internet connection and try again.'}
-        </div>
-        ${!isKeyPlaceholder?`<button onclick="location.reload()" class="btn btn-primary" style="display:inline-flex;width:auto;padding:12px 24px">Retry</button>`:''}
-      </div>`;
   }
 }
 
