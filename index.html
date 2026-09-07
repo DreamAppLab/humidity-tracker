@@ -1,309 +1,1424 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Humidity Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d1117;--surface:#161b22;--surface2:#1e2530;--border:#2a3340;--text:#e6edf3;--muted:#7d8fa0;--tv:#38bdf8;--dresser:#a78bfa;--closet:#34d399;--accent:#38bdf8;--danger:#f87171;--warn:#fbbf24;--r:12px;--rs:8px}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5}
-.app{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px}
-.brand h1{font-size:1.6rem;font-weight:600;letter-spacing:-.02em}
-.brand span{color:var(--accent)}
-.brand p{color:var(--muted);font-size:.82rem;margin-top:2px}
-#weather-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;min-height:68px}
-.wx-loading{color:var(--muted);font-size:.85rem}
-.wx-item{display:flex;flex-direction:column;gap:2px}
-.wx-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.wx-val{font-family:'DM Mono',monospace;font-size:1.05rem;font-weight:500}
-.wx-icon{font-size:2rem;line-height:1}
-.wx-div{width:1px;height:36px;background:var(--border);flex-shrink:0}
-.wx-date{color:var(--muted);font-size:.8rem;margin-left:auto}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.card.tv::before{background:var(--tv)}.card.dresser::before{background:var(--dresser)}.card.closet::before{background:var(--closet)}
-.c-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-.c-name{font-size:1rem;font-weight:500;margin-bottom:10px}
-.c-val{font-family:'DM Mono',monospace;font-size:2.6rem;font-weight:400;line-height:1}
-.c-pct{font-size:1rem;color:var(--muted);margin-left:2px}
-.c-stats{display:flex;gap:16px;margin-top:10px}
-.stat{font-size:.78rem}.stat span{color:var(--muted)}
-.card.tv .c-val{color:var(--tv)}.card.dresser .c-val{color:var(--dresser)}.card.closet .c-val{color:var(--closet)}
-.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px;margin-bottom:20px;width:fit-content}
-.tab{padding:7px 20px;border-radius:var(--rs);font-size:.85rem;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .15s;font-family:inherit}
-.tab.active{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-.tab:hover:not(.active){color:var(--text)}
-.panel{display:none}.panel.active{display:block}
-.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
-.chart-controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.chart-controls label{font-size:.8rem;color:var(--muted);margin-right:4px}
-select{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:6px 10px;font-family:inherit;font-size:.85rem;cursor:pointer}
-select:focus{outline:1px solid var(--accent)}
-canvas{width:100%!important}
-.legend{display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap}
-.leg{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
-.dot{width:10px;height:10px;border-radius:50%}
-.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-table{width:100%;border-collapse:collapse}
-thead tr{background:var(--surface2)}
-th{padding:10px 14px;font-size:.72rem;font-weight:500;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-td{padding:9px 14px;font-size:.86rem;border-bottom:1px solid var(--border);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr.dr:hover td{background:var(--surface2)}
-tr.dh td{background:var(--surface2);border-top:2px solid var(--border);border-bottom:1px solid var(--border);padding:10px 14px}
-tr.dh:first-child td{border-top:none}
-.dh-date{font-weight:600;font-size:.9rem;color:var(--text);margin-right:14px}
-.dh-wx{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
-.wx-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:.75rem;color:var(--muted)}
-.wx-chip strong{color:var(--text);font-weight:500}
-.v-tv{color:var(--tv);font-family:'DM Mono',monospace;font-weight:500}
-.v-dr{color:var(--dresser);font-family:'DM Mono',monospace;font-weight:500}
-.v-cl{color:var(--closet);font-family:'DM Mono',monospace;font-weight:500}
-.t-time{color:var(--muted);font-size:.82rem;font-family:'DM Mono',monospace}
-.acts{display:flex;gap:6px}
-.ico-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .15s}
-.ico-btn:hover{background:var(--surface2);color:var(--text)}
-.ico-btn.del:hover{border-color:var(--danger);color:var(--danger)}
-.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:800;opacity:0;pointer-events:none;transition:opacity .25s}
-.drawer-overlay.open{opacity:1;pointer-events:all}
-.drawer{background:var(--surface);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:680px;padding:28px 24px 36px;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
-.drawer-overlay.open .drawer{transform:translateY(0)}
-.drawer-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
-.drawer-title{font-size:1.1rem;font-weight:600}
-.drawer-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.drawer-close:hover{background:var(--surface2);color:var(--text)}
-.dt-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
-.fg{display:flex;flex-direction:column;gap:6px}
-.fg label{font-size:.78rem;color:var(--muted);font-weight:500}
-.fg input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:10px 12px;font-family:inherit;font-size:.95rem;width:100%}
-.fg input:focus{outline:1px solid var(--accent)}
-.sensor-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
-.si{display:flex;flex-direction:column;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:16px}
-.si-label{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
-.si.tv .si-label{color:var(--tv)}.si.dresser .si-label{color:var(--dresser)}.si.closet .si-label{color:var(--closet)}
-.si-name{font-size:.85rem;color:var(--muted);margin-bottom:4px}
-.si input{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:10px 12px;font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:500;width:100%;text-align:center}
-.si.tv input:focus{outline:1px solid var(--tv)}.si.dresser input:focus{outline:1px solid var(--dresser)}.si.closet input:focus{outline:1px solid var(--closet)}
-.si input::placeholder{color:var(--border);font-size:1rem}
-.drawer-actions{display:flex;align-items:center;gap:12px}
-.btn-save{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:12px 28px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:opacity .15s;flex:1}
-.btn-save:hover{opacity:.88}
-.btn-cancel{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--rs);padding:12px 20px;font-family:inherit;font-size:.95rem;cursor:pointer;transition:all .15s}
-.btn-cancel:hover{color:var(--text);border-color:var(--muted)}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:900}
-.modal-overlay.open{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;width:100%;max-width:520px;margin:20px}
-.modal h3{font-size:1.05rem;font-weight:600;margin-bottom:20px}
-.m-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.m-sensors{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
-.m-fg{display:flex;flex-direction:column;gap:5px}
-.m-fg label{font-size:.78rem;font-weight:500}
-.m-fg.tv label{color:var(--tv)}.m-fg.dresser label{color:var(--dresser)}.m-fg.closet label{color:var(--closet)}
-.m-fg input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:9px 12px;font-family:inherit;font-size:.9rem;width:100%}
-.m-fg input:focus{outline:1px solid var(--accent)}
-.m-actions{display:flex;align-items:center;gap:10px}
-.btn-primary{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:10px 24px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s}
-.btn-primary:hover{opacity:.88}
-.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--rs);padding:10px 20px;font-family:inherit;font-size:.9rem;cursor:pointer;transition:all .15s}
-.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
-.btn-add{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:10px 22px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;gap:6px}
-.btn-add:hover{opacity:.88}
-.toast{position:fixed;bottom:28px;right:28px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 20px;font-size:.88rem;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .25s;z-index:999}
-.toast.show{transform:translateY(0);opacity:1}
-.toast.ok{border-color:var(--closet)}.toast.err{border-color:var(--danger)}
-@media(max-width:650px){.cards{grid-template-columns:1fr}.sensor-inputs,.m-sensors{grid-template-columns:1fr}.dt-row,.m-row{grid-template-columns:1fr}}
-/* ZIP modal */
-.zip-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:1000}
-.zip-overlay.open{display:flex}
-.zip-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:32px 28px;width:100%;max-width:420px;margin:20px;text-align:center}
-.zip-box h2{font-size:1.3rem;font-weight:600;margin-bottom:10px}
-.zip-box p{color:var(--muted);font-size:.88rem;margin-bottom:22px;line-height:1.6}
-.zip-box input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:12px 16px;font-family:'DM Mono',monospace;font-size:1.5rem;font-weight:500;width:100%;text-align:center;letter-spacing:.2em;margin-bottom:16px;display:block}
-.zip-box input:focus{outline:1px solid var(--accent)}
-.zip-box .btn-zip{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:12px 28px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:opacity .15s;width:100%}
-.zip-box .btn-zip:hover{opacity:.88}
-/* Scrollable chart */
-.chart-outer{position:relative;overflow:hidden}
-.chart-scroll{overflow-y:hidden}
-#y-axis-overlay{position:absolute;top:0;left:0;pointer-events:none;z-index:3;display:none}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Humidity">
+  <title>💧 Humidity Tracker</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#3B82F6">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ─── Variables ─────────────────────────────────── */
+    :root {
+      --bg:      #0a0e1a;
+      --card:    #131929;
+      --card2:   #1a2235;
+      --border:  rgba(255,255,255,0.07);
+      --accent:  #3B82F6;
+      --success: #22c55e;
+      --warning: #eab308;
+      --danger:  #ef4444;
+      --dry:     #60a5fa;
+      --text:    #e8eeff;
+      --sub:     rgba(232,238,255,0.72);
+      --muted:   rgba(232,238,255,0.4);
+      --hdr:     56px;
+      --tabs:    44px;
+    }
+
+    /* ─── Reset ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      overflow-x: hidden;
+    }
+
+    /* ─── Loading ────────────────────────────────────── */
+    #loading-screen {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 22px; z-index: 1000;
+    }
+    .loading-dots { display: flex; gap: 10px; }
+    .loading-dots span {
+      width: 11px; height: 11px; border-radius: 50%;
+      background: var(--accent);
+      animation: dot-pulse 1.4s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: .22s; }
+    .loading-dots span:nth-child(3) { animation-delay: .44s; }
+    @keyframes dot-pulse {
+      0%,100% { transform: scale(.6) translateY(0);   opacity: .35; }
+      50%      { transform: scale(1.2) translateY(-5px); opacity: 1; }
+    }
+    .loading-text { color: var(--muted); font-size: 14px; font-weight: 500; }
+
+    /* ─── Setup screens ──────────────────────────────── */
+    .setup-screen {
+      min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .setup-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
+      width: 100%;
+    }
+    .setup-card h1 { font-size: 21px; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
+    .setup-card > p { color: var(--sub); font-size: 14px; line-height: 1.65; margin-bottom: 26px; }
+
+    /* ─── Form elements ──────────────────────────────── */
+    input[type=text], input[type=number], input[type=date], input[type=time] {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .15s;
+      -webkit-appearance: none;
+      color-scheme: dark;
+    }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    /* ─── Buttons ────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 12px 20px; border-radius: 10px; border: none;
+      font-family: inherit; font-size: 15px; font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(.97); opacity: .85; }
+    .btn-primary  { background: var(--accent);  color: #fff; width: 100%; }
+    .btn-secondary { background: rgba(255,255,255,.07); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger   { background: rgba(239,68,68,.12); color: var(--danger); border: 1px solid rgba(239,68,68,.2); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ─── Header ─────────────────────────────────────── */
+    header {
+      position: sticky; top: 0;
+      height: var(--hdr);
+      background: rgba(10,14,26,.96);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 18px;
+      z-index: 100;
+    }
+    .app-title { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .droplet { display: inline-block; animation: drp 2s ease-in-out infinite; }
+    @keyframes drp { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+    .share-btn {
+      background: none; border: none; font-size: 20px;
+      cursor: pointer; padding: 8px; border-radius: 8px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s;
+    }
+    .share-btn:active { background: rgba(255,255,255,.1); }
+
+    /* ─── Tabs ───────────────────────────────────────── */
+    .tabs-nav {
+      position: sticky; top: var(--hdr);
+      height: var(--tabs); background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex; z-index: 99;
+    }
+    .tab-btn {
+      flex: 1; background: none; border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ─── Tab content ────────────────────────────────── */
+    .tab-content { padding: 14px 14px 100px; }
+
+    /* ─── Cards ──────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 16px; margin-bottom: 12px;
+    }
+
+    /* ─── Outdoor card ───────────────────────────────── */
+    .outdoor-card { border-color: rgba(59,130,246,.22); }
+    .outdoor-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--accent); margin-bottom: 10px;
+    }
+    .outdoor-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .weather-icon { font-size: 34px; line-height: 1; }
+    .outdoor-humidity {
+      font-size: 34px; font-weight: 700;
+      font-family: 'DM Mono', monospace;
+    }
+    .outdoor-temp { font-size: 15px; color: var(--sub); font-family: 'DM Mono', monospace; }
+    .outdoor-loading { color: var(--muted); font-size: 13px; }
+
+    /* ─── Location cards ─────────────────────────────── */
+    .loc-card { border-left: 3px solid var(--border); }
+    .loc-card.s-dry     { border-left-color: var(--dry); }
+    .loc-card.s-ideal   { border-left-color: var(--success); }
+    .loc-card.s-warning { border-left-color: var(--warning); }
+    .loc-card.s-danger  { border-left-color: var(--danger); }
+    .card-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .loc-name { font-size: 13px; font-weight: 600; color: var(--sub); }
+    .status-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+    }
+    .status-badge.dry     { background: rgba(96,165,250,.14);  color: var(--dry); }
+    .status-badge.ideal   { background: rgba(34,197,94,.14);   color: var(--success); }
+    .status-badge.warning { background: rgba(234,179,8,.14);   color: var(--warning); }
+    .status-badge.danger  { background: rgba(239,68,68,.14);   color: var(--danger); }
+    .hum-big {
+      font-size: 54px; font-weight: 700;
+      font-family: 'DM Mono', monospace;
+      line-height: 1; margin: 4px 0;
+    }
+    .hum-big .unit { font-size: 24px; font-weight: 600; opacity: .65; }
+    .hum-big.dry     { color: var(--dry); }
+    .hum-big.ideal   { color: var(--success); }
+    .hum-big.warning { color: var(--warning); }
+    .hum-big.danger  { color: var(--danger); }
+    .reading-range { font-size: 12px; color: var(--muted); margin-top: 5px; font-family: 'DM Mono', monospace; }
+    .reading-time  { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .no-readings   { color: var(--muted); font-size: 13px; padding: 10px 0; }
+
+    /* ─── Info box ───────────────────────────────────── */
+    .info-box {
+      background: rgba(59,130,246,.07);
+      border: 1px solid rgba(59,130,246,.14);
+      border-radius: 12px; padding: 14px;
+      font-size: 13px; color: var(--sub); line-height: 1.65;
+      margin-top: 4px;
+    }
+
+    /* ─── Add Reading FAB ────────────────────────────── */
+    #add-btn {
+      position: fixed;
+      bottom: calc(22px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 100px;
+      padding: 14px 30px;
+      font-family: inherit; font-size: 15px; font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 24px rgba(59,130,246,.38);
+      z-index: 50;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .12s, box-shadow .15s;
+      white-space: nowrap;
+    }
+    #add-btn:active {
+      transform: translateX(-50%) scale(.95);
+      box-shadow: 0 2px 12px rgba(59,130,246,.25);
+    }
+    #add-btn.hidden { display: none; }
+
+    /* ─── Drawer ─────────────────────────────────────── */
+    #overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6); z-index: 200;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s;
+    }
+    #overlay.vis { opacity: 1; pointer-events: all; }
+    #drawer {
+      position: fixed; bottom: 0;
+      left: 50%; transform: translateX(-50%) translateY(100%);
+      width: 100%; max-width: 430px;
+      background: var(--card);
+      border-radius: 22px 22px 0 0;
+      z-index: 201;
+      max-height: 92dvh; overflow-y: auto;
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    #drawer.open { transform: translateX(-50%) translateY(0); }
+    .drw-handle {
+      width: 36px; height: 4px;
+      background: rgba(255,255,255,.14);
+      border-radius: 2px; margin: 12px auto 0;
+    }
+    .drw-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .drw-title { font-size: 16px; font-weight: 700; }
+    .drw-close {
+      background: rgba(255,255,255,.08); border: none;
+      color: var(--muted); font-size: 15px;
+      width: 30px; height: 30px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .drw-body { padding: 16px 18px; }
+    .f-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); display: block; margin-bottom: 5px;
+    }
+    .f-row { margin-bottom: 14px; }
+    .f-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .loc-row {
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; margin-bottom: 10px;
+    }
+    .loc-row-name { font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 8px; }
+    .r-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .inp-wrap { position: relative; }
+    .inp-wrap input { padding-right: 30px; }
+    .inp-unit {
+      position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px; color: var(--muted);
+      pointer-events: none; font-family: 'DM Mono', monospace;
+    }
+
+    /* ─── Chart tab ──────────────────────────────────── */
+    .range-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .range-btn {
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 20px;
+      padding: 6px 14px; font-family: inherit; font-size: 13px; font-weight: 500;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: all .15s;
+    }
+    .range-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .chart-outer {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .chart-scroll canvas { display: block; }
+    .scroll-hint { text-align: center; font-size: 11px; color: var(--muted); padding: 7px 0 5px; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 14px 14px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ─── History tab ────────────────────────────────── */
+    .export-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+    .day-group { margin-bottom: 20px; }
+    .day-hdr {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); padding: 5px 0;
+      border-bottom: 1px solid var(--border); margin-bottom: 7px;
+    }
+    .r-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px;
+      margin-bottom: 5px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s;
+    }
+    .r-row:active { background: var(--card2); }
+    .r-time { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); min-width: 46px; }
+    .r-loc  { flex: 1; font-size: 13px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .r-hum  { font-size: 16px; font-weight: 700; font-family: 'DM Mono', monospace; min-width: 48px; text-align: right; }
+    .r-hum.dry     { color: var(--dry); }
+    .r-hum.ideal   { color: var(--success); }
+    .r-hum.warning { color: var(--warning); }
+    .r-hum.danger  { color: var(--danger); }
+    .r-temp { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); min-width: 44px; text-align: right; }
+
+    /* ─── Settings tab ───────────────────────────────── */
+    .s-section { margin-bottom: 24px; }
+    .s-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; padding: 0 4px; }
+    .s-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .s-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px; border-bottom: 1px solid var(--border);
+    }
+    .s-item:last-child { border-bottom: none; }
+    .s-item-label { font-size: 14px; font-weight: 500; flex: 1; }
+    .s-item-value { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .s-btn {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border);
+      color: var(--sub); padding: 6px 12px; border-radius: 8px;
+      font-family: inherit; font-size: 12px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .s-btn.danger { color: var(--danger); background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.2); }
+    .link-block {
+      font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted);
+      word-break: break-all; line-height: 1.6; padding: 0 14px 14px;
+    }
+    .install-box {
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-top: 6px;
+    }
+    .install-box p { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 6px; }
+    .install-box p:last-child { margin-bottom: 0; }
+    .add-loc-row { display: flex; gap: 8px; padding: 12px 14px 14px; }
+    .add-loc-row input { flex: 1; }
+    .add-loc-row button { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.25); border-radius: 8px; color: var(--accent); font-family: inherit; font-size: 13px; font-weight: 600; padding: 0 16px; cursor: pointer; white-space: nowrap; }
+
+    /* ─── Modal ──────────────────────────────────────── */
+    .modal-bg {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.72); z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 24px; width: 100%; max-width: 360px;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+    .modal-actions .btn { flex: 1; padding: 11px 10px; }
+    .chk-label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; }
+    .chk-label input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+    /* ─── Footer ─────────────────────────────────────── */
+    .app-footer { text-align: center; padding: 18px 16px 32px; }
+    .app-footer a {
+      display: block; font-size: 11px;
+      color: rgba(255,255,255,.18); text-decoration: none; line-height: 2;
+    }
+    .app-footer a:hover { color: rgba(255,255,255,.36); }
+
+    /* ─── Toast ──────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%) translateY(14px);
+      background: rgba(26,34,53,.97);
+      color: var(--text); font-size: 13px;
+      padding: 10px 18px; border-radius: 100px;
+      border: 1px solid rgba(255,255,255,.1);
+      backdrop-filter: blur(10px);
+      z-index: 500; max-width: 320px;
+      text-align: center; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s, transform .22s;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ─── Setup helpers ──────────────────────────────── */
+    #zip-input { font-size: 26px; font-family: 'DM Mono', monospace; text-align: center; letter-spacing: .2em; margin-bottom: 20px; }
+    .err-banner { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--danger); margin-bottom: 14px; }
+    .loc-setup-list { list-style: none; margin: 10px 0; }
+    .loc-setup-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; font-size: 14px; animation: fade-up .2s ease; }
+    .loc-rm { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0 4px; }
+    .add-loc-input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .add-loc-input-row input { flex: 1; }
+    .add-loc-btn { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.25); border-radius: 10px; color: var(--accent); font-family: inherit; font-size: 14px; font-weight: 600; padding: 0 16px; cursor: pointer; white-space: nowrap; }
+
+    /* ─── Misc ───────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 44px 20px; color: var(--muted); font-size: 14px; }
+    .empty-state .ico { font-size: 40px; margin-bottom: 10px; }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+  </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="brand"><h1>Humidity <span>Tracker</span></h1><p>St. Augustine, FL &middot; 3 sensors &middot; tracking daily</p></div>
-    <button class="btn-add" id="openAddBtn"><span style="font-size:1.1rem;line-height:1">+</span> Add Reading</button>
-  </header>
-  <div id="weather-bar"><p class="wx-loading">Loading today's weather&hellip;</p></div>
-  <div class="cards">
-    <div class="card tv"><div class="c-label">Sensor 1</div><div class="c-name">Next to TV</div><div><span class="c-val" id="cur-tv">&mdash;</span><span class="c-pct">%</span></div><div class="c-stats"><div class="stat"><span>Low </span><strong id="lo-tv">&mdash;</strong>%</div><div class="stat"><span>High </span><strong id="hi-tv">&mdash;</strong>%</div><div class="stat"><span>Avg </span><strong id="av-tv">&mdash;</strong>%</div></div></div>
-    <div class="card dresser"><div class="c-label">Sensor 2</div><div class="c-name">Dresser</div><div><span class="c-val" id="cur-dresser">&mdash;</span><span class="c-pct">%</span></div><div class="c-stats"><div class="stat"><span>Low </span><strong id="lo-dresser">&mdash;</strong>%</div><div class="stat"><span>High </span><strong id="hi-dresser">&mdash;</strong>%</div><div class="stat"><span>Avg </span><strong id="av-dresser">&mdash;</strong>%</div></div></div>
-    <div class="card closet"><div class="c-label">Sensor 3</div><div class="c-name">Closet</div><div><span class="c-val" id="cur-closet">&mdash;</span><span class="c-pct">%</span></div><div class="c-stats"><div class="stat"><span>Low </span><strong id="lo-closet">&mdash;</strong>%</div><div class="stat"><span>High </span><strong id="hi-closet">&mdash;</strong>%</div><div class="stat"><span>Avg </span><strong id="av-closet">&mdash;</strong>%</div></div></div>
+
+<!-- ════════════════════════ LOADING ════════════════════════ -->
+<div id="loading-screen">
+  <div class="loading-dots"><span></span><span></span><span></span></div>
+  <p class="loading-text">Loading your tracker...</p>
+</div>
+
+<!-- ════════════════════════ ZIP SETUP ══════════════════════ -->
+<div id="zip-screen" class="setup-screen" hidden>
+  <div class="setup-card">
+    <h1>📍 Where are you located?</h1>
+    <p>We use your ZIP code to show outdoor humidity for your area.</p>
+    <div id="zip-err" class="err-banner" hidden></div>
+    <input type="text" id="zip-input" inputmode="numeric" maxlength="5" placeholder="32092" autocomplete="postal-code">
+    <button class="btn btn-primary" id="zip-btn" onclick="saveZip()">Continue →</button>
   </div>
-  <div class="tabs"><button class="tab active" id="tab-chart">Chart</button><button class="tab" id="tab-table">All Readings</button></div>
-  <div id="panel-chart" class="panel active">
-    <div class="chart-wrap">
-      <div class="chart-controls">
-        <div><label>View:</label><select id="chart-range"><option value="entries7" selected>Last 7 Entries</option><option value="1">Last 24 hrs</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="alltime">All Time</option></select></div>
-        <div><label>Sensor:</label><select id="chart-sensor"><option value="all">All sensors</option><option value="tv">TV</option><option value="dresser">Dresser</option><option value="closet">Closet</option></select></div>
+</div>
+
+<!-- ════════════════════════ LOCATION SETUP ═════════════════ -->
+<div id="loc-screen" class="setup-screen" hidden>
+  <div class="setup-card">
+    <h1>🏠 Where are your sensors?</h1>
+    <p>Add a name for each location where you have a humidity monitor. For example: Living Room, Master Bedroom, Garage.</p>
+    <div class="add-loc-input-row">
+      <input type="text" id="loc-add-input" placeholder="e.g. Living Room" onkeydown="if(event.key==='Enter')addLocTemp()">
+      <button class="add-loc-btn" onclick="addLocTemp()">Add</button>
+    </div>
+    <ul id="loc-setup-list" class="loc-setup-list"></ul>
+    <button class="btn btn-primary" id="start-btn" onclick="saveLocations()" disabled>Start Tracking →</button>
+  </div>
+</div>
+
+<!-- ════════════════════════ MAIN APP ═══════════════════════ -->
+<div id="app" hidden>
+  <header>
+    <span class="app-title"><span class="droplet">💧</span> Humidity Tracker</span>
+    <button class="share-btn" onclick="doShare()" title="Share">📤</button>
+  </header>
+
+  <nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="summary"  onclick="switchTab('summary')">Summary</button>
+    <button class="tab-btn"        data-tab="chart"    onclick="switchTab('chart')">Chart</button>
+    <button class="tab-btn"        data-tab="history"  onclick="switchTab('history')">History</button>
+    <button class="tab-btn"        data-tab="settings" onclick="switchTab('settings')">Settings</button>
+  </nav>
+
+  <div id="tab-summary"  class="tab-content"></div>
+  <div id="tab-chart"    class="tab-content" hidden></div>
+  <div id="tab-history"  class="tab-content" hidden></div>
+  <div id="tab-settings" class="tab-content" hidden></div>
+
+  <footer class="app-footer">
+    <a href="https://dreamapplab.com" target="_blank" rel="noopener">Powered by Dream App Lab</a>
+    <a href="https://dreamapplab.com" target="_blank" rel="noopener">Need a custom app? We build them. → dreamapplab.com</a>
+  </footer>
+
+  <button id="add-btn" onclick="openDrawer()">+ Add Reading</button>
+</div>
+
+<!-- ════════════════════════ DRAWER ═════════════════════════ -->
+<div id="overlay" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div class="drw-handle"></div>
+  <div class="drw-header">
+    <span class="drw-title">Add Reading</span>
+    <button class="drw-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drw-body" id="drw-body"></div>
+</div>
+
+<!-- ════════════════════════ TOAST ══════════════════════════ -->
+<div id="toast"></div>
+
+<!-- ════════════════════════ EDIT MODAL ═════════════════════ -->
+<div id="edit-modal" class="modal-bg" hidden>
+  <div class="modal-box">
+    <div class="modal-title">Edit Reading</div>
+    <div class="f-row">
+      <label class="f-label">Humidity (%)</label>
+      <input type="number" id="em-hum" min="0" max="100" step="1">
+    </div>
+    <div class="f-row">
+      <label class="f-label">Temperature (°F) — optional</label>
+      <input type="number" id="em-temp" min="-50" max="150" step="0.1" placeholder="—">
+    </div>
+    <div class="f-row">
+      <label class="f-label">Time</label>
+      <input type="time" id="em-time">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger"     onclick="confirmDelete()">Delete</button>
+      <button class="btn btn-secondary"  onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary"    onclick="saveEdit()" style="width:auto;flex:1.5">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ EXPORT MODAL ═══════════════════ -->
+<div id="export-modal" class="modal-bg" hidden>
+  <div class="modal-box">
+    <div class="modal-title">📄 Export Report</div>
+    <div class="f-2col">
+      <div>
+        <label class="f-label">From</label>
+        <input type="date" id="exp-from">
       </div>
-      <div class="legend">
-        <div class="leg"><div class="dot" style="background:#38bdf8"></div>TV</div>
-        <div class="leg"><div class="dot" style="background:#a78bfa"></div>Dresser</div>
-        <div class="leg"><div class="dot" style="background:#34d399"></div>Closet</div>
-        <div class="leg"><div class="dot" style="background:#fbbf24;border-radius:2px;opacity:.7"></div><span style="opacity:.7">Outside humidity range</span></div>
+      <div>
+        <label class="f-label">To</label>
+        <input type="date" id="exp-to">
       </div>
-      <div class="chart-outer" id="chart-outer">
-        <canvas id="y-axis-overlay"></canvas>
-        <div class="chart-scroll" id="chart-scroll">
-          <canvas id="main-chart" height="340"></canvas>
+    </div>
+    <div class="f-row">
+      <label class="f-label">Locations</label>
+      <div id="exp-locs"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+      <button class="btn btn-primary"   onclick="generateReport()" style="width:auto;flex:1.5">Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ SCRIPT ═════════════════════════ -->
+<script>
+/* ── CONFIG ─────────────────────────────────────────────── */
+const SUPABASE_URL = 'https://pqwcduezhmesodjjplaa.supabase.co';
+const SUPABASE_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE'; // ← Replace with your anon key
+
+/* ── STATE ──────────────────────────────────────────────── */
+const ST = {
+  homeId: null,
+  home:   null,   // { id, zip_code, lat, lng, locations: [] }
+  readings: [],
+  tab:    'summary',
+  weather: null,
+  wtTimer: null,
+  chart:  null,
+  chartRange: '7entries',
+  editId: null,
+  editDate: null
+};
+
+const tempLocs = []; // for location-setup screen
+
+/* ── PALETTE (chart lines) ──────────────────────────────── */
+const PALETTE = ['#3B82F6','#22c55e','#eab308','#ef4444','#a855f7','#ec4899','#14b8a6','#f97316'];
+
+/* ══ UTILITIES ══════════════════════════════════════════════ */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(ts) {
+  const d = Date.now() - new Date(ts).getTime();
+  if (d < 60e3)  return 'Just now';
+  if (d < 3.6e6) return Math.floor(d/60e3)+'m ago';
+  if (d < 864e5) return Math.floor(d/3.6e6)+'h ago';
+  const days = Math.floor(d/864e5);
+  return days === 1 ? 'Yesterday' : days+'d ago';
+}
+
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+}
+
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+}
+
+function toHHMM(ts) {
+  const d = new Date(ts);
+  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+}
+
+function todayISO() { return new Date().toISOString().slice(0,10); }
+function nowHHMM()  {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+}
+
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>el.classList.remove('show'), 2500);
+}
+
+function humStatus(h) {
+  if (h < 30)  return {cls:'dry',     label:'Too Dry'};
+  if (h <= 50) return {cls:'ideal',   label:'Ideal ✓'};
+  if (h <= 60) return {cls:'warning', label:'Slightly High'};
+  return             {cls:'danger',   label:'High — Act Now'};
+}
+
+function wxIcon(code) {
+  if (code === 0)   return '☀️';
+  if (code <= 3)    return '⛅';
+  if (code <= 48)   return '🌫️';
+  if (code <= 57)   return '🌦️';
+  if (code <= 67)   return '🌧️';
+  if (code <= 77)   return '🌨️';
+  if (code <= 82)   return '🌧️';
+  if (code <= 86)   return '🌨️';
+  return '⛈️';
+}
+
+/* ══ SUPABASE ════════════════════════════════════════════════ */
+async function sb(method, path, body, extra = {}) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'apikey': SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      ...extra
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  if (!r.ok) throw new Error(`SB ${method} ${path}: ${r.status}`);
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
+
+/* ══ WEATHER ════════════════════════════════════════════════ */
+async function fetchWeather() {
+  if (!ST.home?.lat) return;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ST.home.lat}&longitude=${ST.home.lng}&current=relative_humidity_2m,temperature_2m,weather_code&temperature_unit=fahrenheit`;
+    const d = await (await fetch(url)).json();
+    if (d.current) {
+      ST.weather = {
+        humidity: d.current.relative_humidity_2m,
+        temp: Math.round(d.current.temperature_2m * 10) / 10,
+        code: d.current.weather_code
+      };
+      if (ST.tab === 'summary') renderSummary();
+    }
+  } catch(e) { console.warn('weather:', e); }
+  clearTimeout(ST.wtTimer);
+  ST.wtTimer = setTimeout(fetchWeather, 10 * 60 * 1000);
+}
+
+async function geocodeZip(zip) {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zip)}&count=1&language=en&format=json`;
+  const d = await (await fetch(url)).json();
+  if (d.results?.length) return { lat: d.results[0].latitude, lng: d.results[0].longitude };
+  return null;
+}
+
+/* ══ SCREENS ════════════════════════════════════════════════ */
+function showScreen(name) {
+  document.getElementById('loading-screen').hidden = name !== 'loading';
+  document.getElementById('zip-screen').hidden     = name !== 'zip';
+  document.getElementById('loc-screen').hidden     = name !== 'location';
+  document.getElementById('app').hidden            = name !== 'app';
+}
+
+/* ══ ZIP SETUP ══════════════════════════════════════════════ */
+async function saveZip() {
+  const zip = document.getElementById('zip-input').value.trim();
+  const errEl = document.getElementById('zip-err');
+  errEl.hidden = true;
+  if (!/^\d{5}$/.test(zip)) {
+    errEl.textContent = 'Please enter a valid 5-digit ZIP code.';
+    errEl.hidden = false; return;
+  }
+  const btn = document.getElementById('zip-btn');
+  btn.disabled = true; btn.textContent = 'Looking up…';
+  try {
+    const geo = await geocodeZip(zip);
+    if (!geo) throw new Error('not found');
+    await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { zip_code: zip, lat: geo.lat, lng: geo.lng });
+    ST.home.zip_code = zip; ST.home.lat = geo.lat; ST.home.lng = geo.lng;
+    showScreen('location');
+  } catch(e) {
+    errEl.textContent = 'Could not find that ZIP code. Please try again.';
+    errEl.hidden = false;
+    btn.disabled = false; btn.textContent = 'Continue →';
+  }
+}
+
+/* ══ LOCATION SETUP ══════════════════════════════════════════ */
+function addLocTemp() {
+  const inp = document.getElementById('loc-add-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (tempLocs.includes(name)) { toast('Already added'); return; }
+  tempLocs.push(name); inp.value = '';
+  renderLocSetup(); inp.focus();
+}
+
+function removeLocTemp(i) { tempLocs.splice(i,1); renderLocSetup(); }
+
+function renderLocSetup() {
+  document.getElementById('loc-setup-list').innerHTML = tempLocs.map((n,i)=>`
+    <li class="loc-setup-item">
+      <span>${esc(n)}</span>
+      <button class="loc-rm" onclick="removeLocTemp(${i})">✕</button>
+    </li>`).join('');
+  document.getElementById('start-btn').disabled = tempLocs.length === 0;
+}
+
+async function saveLocations() {
+  if (!tempLocs.length) return;
+  const btn = document.getElementById('start-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { locations: [...tempLocs] });
+    ST.home.locations = [...tempLocs];
+    showScreen('app'); renderApp(); fetchWeather();
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Start Tracking →';
+    toast('Failed to save. Please try again.');
+  }
+}
+
+/* ══ MAIN APP ════════════════════════════════════════════════ */
+function renderApp() { switchTab(ST.tab); }
+
+function switchTab(tab) {
+  ST.tab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['summary','chart','history','settings'].forEach(t => {
+    document.getElementById('tab-'+t).hidden = t !== tab;
+  });
+  document.getElementById('add-btn').classList.toggle('hidden', tab === 'settings');
+  if (tab === 'summary')  renderSummary();
+  if (tab === 'chart')    renderChart();
+  if (tab === 'history')  renderHistory();
+  if (tab === 'settings') renderSettings();
+}
+
+/* ══ SUMMARY TAB ════════════════════════════════════════════ */
+function renderSummary() {
+  const el = document.getElementById('tab-summary');
+  const locations = [...(ST.home?.locations||[])].sort();
+  let html = '';
+
+  /* Outdoor card */
+  html += '<div class="card outdoor-card">';
+  html += '<div class="outdoor-label">🌤 Outdoor Conditions</div>';
+  if (ST.weather) {
+    const w = ST.weather;
+    html += `<div class="outdoor-row">
+      <span class="weather-icon">${wxIcon(w.code)}</span>
+      <span class="outdoor-humidity">${w.humidity}<span style="font-size:18px;opacity:.65">%</span></span>
+      <span class="outdoor-temp">${w.temp}°F</span>
+    </div>`;
+  } else {
+    html += '<div class="outdoor-loading">Fetching outdoor conditions…</div>';
+  }
+  html += '</div>';
+
+  /* Location cards */
+  for (const loc of locations) {
+    const lrx = ST.readings.filter(r => r.location === loc);
+    const latest = lrx[0];
+    const today = todayISO();
+    const todayRx = lrx.filter(r => r.recorded_at.slice(0,10) === today);
+    const lo = todayRx.length ? Math.min(...todayRx.map(r=>r.humidity)) : null;
+    const hi = todayRx.length ? Math.max(...todayRx.map(r=>r.humidity)) : null;
+    const st = latest ? humStatus(latest.humidity) : null;
+
+    html += `<div class="card loc-card${st?' s-'+st.cls:''}">`;
+    html += `<div class="card-header-row">
+      <span class="loc-name">${esc(loc)}</span>
+      ${st?`<span class="status-badge ${st.cls}">${st.label}</span>`:''}
+    </div>`;
+    if (latest) {
+      html += `<div class="hum-big ${st.cls}">${latest.humidity}<span class="unit">%</span></div>`;
+      if (lo !== null) html += `<div class="reading-range">Today: Low ${lo}% — High ${hi}%</div>`;
+      html += `<div class="reading-time">${timeAgo(latest.recorded_at)}</div>`;
+    } else {
+      html += '<div class="no-readings">No readings yet — tap + to add one</div>';
+    }
+    html += '</div>';
+  }
+
+  /* Info box */
+  html += `<div class="info-box">💡 <strong>Ideal indoor humidity: 30–50%.</strong>
+    Above 60% encourages mold growth. Below 30% causes dry air discomfort.</div>`;
+
+  el.innerHTML = html;
+}
+
+/* ══ CHART TAB ══════════════════════════════════════════════ */
+function getChartReadings(range) {
+  const asc = [...ST.readings].sort((a,b)=>new Date(a.recorded_at)-new Date(b.recorded_at));
+  if (range === '7entries') {
+    const top7times = [...new Set(ST.readings.map(r=>r.recorded_at))].slice(0,7);
+    return asc.filter(r=>top7times.includes(r.recorded_at));
+  }
+  if (range === '30days') {
+    const cut = new Date(); cut.setDate(cut.getDate()-30);
+    return asc.filter(r=>new Date(r.recorded_at)>=cut);
+  }
+  return asc;
+}
+
+function renderChart() {
+  const el = document.getElementById('tab-chart');
+  if (!ST.readings.length) {
+    el.innerHTML = '<div class="empty-state"><div class="ico">📊</div>Add readings to see your chart.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="range-row">
+      <button class="range-btn${ST.chartRange==='7entries'?' active':''}" onclick="setRange('7entries')">7 Entries</button>
+      <button class="range-btn${ST.chartRange==='30days'?' active':''}" onclick="setRange('30days')">30 Days</button>
+      <button class="range-btn${ST.chartRange==='all'?' active':''}" onclick="setRange('all')">All Time</button>
+    </div>
+    <div class="chart-outer">
+      <div class="chart-scroll" id="chart-scroll">
+        <canvas id="chart-canvas"></canvas>
+      </div>
+      <div class="scroll-hint" id="scroll-hint" hidden>← swipe to scroll →</div>
+      <div class="chart-legend" id="chart-legend"></div>
+    </div>`;
+  drawChart();
+}
+
+function setRange(r) { ST.chartRange = r; renderChart(); }
+
+function drawChart() {
+  if (typeof Chart === 'undefined') { return; }
+  const readings = getChartReadings(ST.chartRange);
+  const locs = [...(ST.home?.locations||[])].sort();
+  const times = [...new Set(readings.map(r=>r.recorded_at))].sort();
+
+  const canvas = document.getElementById('chart-canvas');
+  const scroll = document.getElementById('chart-scroll');
+  if (!canvas) return;
+
+  const cW = scroll.parentElement.offsetWidth;
+  const minW = Math.max(cW, Math.max(times.length * 80, 280));
+  const H = 270;
+
+  canvas.width = minW; canvas.height = H;
+  canvas.style.width = minW+'px'; canvas.style.height = H+'px';
+
+  const sh = document.getElementById('scroll-hint');
+  if (sh) sh.hidden = minW <= cW;
+
+  const datasets = locs.map((loc,i)=>({
+    label: loc,
+    data: times.map(ts=>{ const r=readings.find(r=>r.location===loc&&r.recorded_at===ts); return r?r.humidity:null; }),
+    borderColor: PALETTE[i%PALETTE.length],
+    backgroundColor: PALETTE[i%PALETTE.length]+'22',
+    borderWidth: 2.5,
+    pointRadius: 4, pointHoverRadius: 6,
+    tension: 0.3, spanGaps: true, fill: false
+  }));
+
+  const labels = times.map(ts=>{
+    const d = new Date(ts);
+    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  });
+
+  if (ST.chart) { ST.chart.destroy(); ST.chart = null; }
+
+  ST.chart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      animation: { duration: 350 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(19,25,41,.97)',
+          titleColor: '#e8eeff', bodyColor: '#94a3b8',
+          borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+          cornerRadius: 8, padding: 10
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,.04)' },
+          ticks: { color: '#94a3b8', font: { size: 10, family: 'DM Mono' }, maxRotation: 45 }
+        },
+        y: {
+          min: 0, max: 100,
+          grid: {
+            color: ctx => {
+              if (ctx.tick.value===30||ctx.tick.value===50) return 'rgba(59,130,246,.28)';
+              return 'rgba(255,255,255,.04)';
+            }
+          },
+          ticks: { color: '#94a3b8', font: { size: 10, family: 'DM Mono' }, callback: v=>v+'%', stepSize: 10 }
+        }
+      }
+    }
+  });
+
+  const leg = document.getElementById('chart-legend');
+  if (leg) {
+    leg.innerHTML = locs.map((loc,i)=>`
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${PALETTE[i%PALETTE.length]}"></div>
+        <span>${esc(loc)}</span>
+      </div>`).join('');
+  }
+}
+
+/* ══ HISTORY TAB ════════════════════════════════════════════ */
+function renderHistory() {
+  const el = document.getElementById('tab-history');
+  const topBtn = `<div class="export-row"><button class="btn btn-secondary" style="font-size:13px;padding:8px 14px;width:auto" onclick="openExportModal()">📄 Export Report</button></div>`;
+
+  if (!ST.readings.length) {
+    el.innerHTML = topBtn + `<div class="empty-state"><div class="ico">📋</div>No readings yet.<br>Tap + to add your first reading.</div>`;
+    return;
+  }
+
+  const byDate = {};
+  for (const r of ST.readings) {
+    const d = r.recorded_at.slice(0,10);
+    (byDate[d]||(byDate[d]=[])).push(r);
+  }
+
+  let html = topBtn;
+  for (const date of Object.keys(byDate).sort().reverse()) {
+    html += `<div class="day-group"><div class="day-hdr">${fmtDate(date+'T12:00:00')}</div>`;
+    for (const r of byDate[date]) {
+      const st = humStatus(r.humidity);
+      html += `<div class="r-row" onclick="openEditModal('${r.id}')">
+        <span class="r-time">${fmtTime(r.recorded_at)}</span>
+        <span class="r-loc">${esc(r.location)}</span>
+        <span class="r-hum ${st.cls}">${r.humidity}%</span>
+        <span class="r-temp">${r.temperature!=null?r.temperature+'°':'—'}</span>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+/* ══ EDIT MODAL ═════════════════════════════════════════════ */
+function openEditModal(id) {
+  const r = ST.readings.find(x=>x.id===id);
+  if (!r) return;
+  ST.editId = id; ST.editDate = r.recorded_at.slice(0,10);
+  document.getElementById('em-hum').value  = r.humidity;
+  document.getElementById('em-temp').value = r.temperature??'';
+  document.getElementById('em-time').value = toHHMM(r.recorded_at);
+  document.getElementById('edit-modal').hidden = false;
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').hidden = true;
+  ST.editId = null; ST.editDate = null;
+}
+
+async function saveEdit() {
+  const id = ST.editId; if (!id) return;
+  const hum  = parseFloat(document.getElementById('em-hum').value);
+  const temp = document.getElementById('em-temp').value.trim();
+  const time = document.getElementById('em-time').value;
+  if (isNaN(hum)||hum<0||hum>100) { toast('Enter a valid humidity (0–100)'); return; }
+  const recorded_at = new Date(`${ST.editDate}T${time}:00`).toISOString();
+  try {
+    await sb('PATCH', `humidity_readings?id=eq.${id}`, {
+      humidity: Math.round(hum),
+      temperature: temp ? parseFloat(temp) : null,
+      recorded_at
+    });
+    const idx = ST.readings.findIndex(r=>r.id===id);
+    if (idx>=0) {
+      ST.readings[idx].humidity    = Math.round(hum);
+      ST.readings[idx].temperature = temp ? parseFloat(temp) : null;
+      ST.readings[idx].recorded_at = recorded_at;
+      ST.readings.sort((a,b)=>new Date(b.recorded_at)-new Date(a.recorded_at));
+    }
+    closeEditModal(); toast('Reading updated');
+    renderHistory();
+    if (ST.tab==='summary') renderSummary();
+  } catch(e) { toast('Failed to update. Try again.'); }
+}
+
+async function confirmDelete() {
+  const id = ST.editId; if (!id) return;
+  if (!confirm('Delete this reading?')) return;
+  try {
+    await sb('DELETE', `humidity_readings?id=eq.${id}`);
+    ST.readings = ST.readings.filter(r=>r.id!==id);
+    closeEditModal(); toast('Reading deleted');
+    renderHistory();
+    if (ST.tab==='summary') renderSummary();
+  } catch(e) { toast('Failed to delete. Try again.'); }
+}
+
+/* ══ SETTINGS TAB ═══════════════════════════════════════════ */
+function renderSettings() {
+  const el = document.getElementById('tab-settings');
+  const homeUrl = `${location.origin}/?home=${ST.homeId}`;
+  const locs = ST.home?.locations || [];
+
+  el.innerHTML = `
+  <!-- YOUR TRACKER -->
+  <div class="s-section">
+    <div class="s-section-title">Your Tracker</div>
+    <div class="s-card">
+      <div class="s-item">
+        <span class="s-item-label">Your Link</span>
+        <button class="s-btn" onclick="copyUrl()">Copy</button>
+        <button class="s-btn" onclick="doShare()">Share</button>
+      </div>
+      <div class="link-block">${esc(homeUrl)}</div>
+    </div>
+    <div class="install-box">
+      <p><strong>Add to Home Screen (iOS):</strong> Tap the Share icon (↑) → "Add to Home Screen"</p>
+      <p><strong>Add to Home Screen (Android):</strong> Tap the menu (⋮) → "Add to Home Screen" or "Install App"</p>
+    </div>
+  </div>
+
+  <!-- LOCATIONS -->
+  <div class="s-section">
+    <div class="s-section-title">Locations</div>
+    <div class="s-card">
+      ${locs.map((loc,i)=>`
+        <div class="s-item">
+          <span class="s-item-label">${esc(loc)}</span>
+          <button class="s-btn" onclick="renameLoc(${i})">✏️ Rename</button>
+          <button class="s-btn danger" onclick="deleteLoc(${i})">🗑️</button>
+        </div>`).join('')}
+      <div class="add-loc-row">
+        <input type="text" id="new-loc-inp" placeholder="Add location…">
+        <button onclick="addNewLoc()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUR LOCATION -->
+  <div class="s-section">
+    <div class="s-section-title">Your Location</div>
+    <div class="s-card">
+      <div class="s-item">
+        <span class="s-item-label">ZIP Code</span>
+        <span class="s-item-value">${ST.home?.zip_code||'Not set'}</span>
+        <button class="s-btn" onclick="changeZip()">Change</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="s-section">
+    <div class="s-section-title">About</div>
+    <div class="s-card">
+      <div class="s-item" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <p style="font-size:13px;color:var(--sub);line-height:1.7">
+          Track Humidity helps you monitor indoor humidity across your home.
+          Ideal indoor humidity is 30–50%.
+        </p>
+        <p style="font-size:11px;color:var(--muted)">Version 1.0.0</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-footer" style="padding-top:0">
+    <a href="https://dreamapplab.com" target="_blank" rel="noopener">Powered by Dream App Lab</a>
+    <a href="https://dreamapplab.com" target="_blank" rel="noopener">Need a custom app? We build them. → dreamapplab.com</a>
+  </div>`;
+}
+
+function copyUrl() {
+  const url = `${location.origin}/?home=${ST.homeId}`;
+  navigator.clipboard.writeText(url)
+    .then(()=>toast('Link copied to clipboard!'))
+    .catch(()=>toast('Could not copy — try manually'));
+}
+
+async function renameLoc(idx) {
+  const old = ST.home.locations[idx];
+  const nw = prompt(`Rename "${old}" to:`, old);
+  if (!nw||nw.trim()===old) return;
+  const newLocs = [...ST.home.locations]; newLocs[idx] = nw.trim();
+  try {
+    await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { locations: newLocs });
+    // update reading records too
+    const ids = ST.readings.filter(r=>r.location===old).map(r=>r.id);
+    await Promise.all(ids.map(id=>sb('PATCH',`humidity_readings?id=eq.${id}`,{location:nw.trim()})));
+    ST.home.locations = newLocs;
+    ST.readings = ST.readings.map(r=>r.location===old?{...r,location:nw.trim()}:r);
+    toast(`Renamed to "${nw.trim()}"`); renderSettings();
+  } catch(e) { toast('Failed to rename'); }
+}
+
+async function deleteLoc(idx) {
+  const name = ST.home.locations[idx];
+  const cnt  = ST.readings.filter(r=>r.location===name).length;
+  const msg  = cnt>0
+    ? `Delete "${name}"? This will also delete ${cnt} reading${cnt!==1?'s':''}.`
+    : `Delete "${name}"?`;
+  if (!confirm(msg)) return;
+  if (ST.home.locations.length <= 1) { toast('You need at least one location'); return; }
+  const newLocs = ST.home.locations.filter((_,i)=>i!==idx);
+  try {
+    if (cnt>0) {
+      await sb('DELETE',`humidity_readings?home_id=eq.${ST.homeId}&location=eq.${encodeURIComponent(name)}`);
+      ST.readings = ST.readings.filter(r=>r.location!==name);
+    }
+    await sb('PATCH',`humidity_homes?id=eq.${ST.homeId}`,{locations:newLocs});
+    ST.home.locations = newLocs; toast(`"${name}" deleted`); renderSettings();
+  } catch(e) { toast('Failed to delete'); }
+}
+
+async function addNewLoc() {
+  const inp = document.getElementById('new-loc-inp');
+  const name = inp?.value?.trim();
+  if (!name) return;
+  if (ST.home.locations.includes(name)) { toast('Location already exists'); return; }
+  const newLocs = [...ST.home.locations, name];
+  try {
+    await sb('PATCH',`humidity_homes?id=eq.${ST.homeId}`,{locations:newLocs});
+    ST.home.locations = newLocs; if(inp)inp.value='';
+    toast(`"${name}" added`); renderSettings();
+  } catch(e) { toast('Failed to add location'); }
+}
+
+function changeZip() {
+  ST.home.zip_code = null; ST.home.lat = null; ST.home.lng = null;
+  showScreen('zip');
+}
+
+/* ══ ADD READING DRAWER ══════════════════════════════════════ */
+function openDrawer() {
+  const locs = ST.home?.locations || [];
+  document.getElementById('drw-body').innerHTML = `
+    <div class="f-2col">
+      <div><label class="f-label">Date</label><input type="date" id="r-date" value="${todayISO()}"></div>
+      <div><label class="f-label">Time</label><input type="time" id="r-time" value="${nowHHMM()}"></div>
+    </div>
+    ${locs.map(loc=>`
+    <div class="loc-row">
+      <div class="loc-row-name">${esc(loc)}</div>
+      <div class="r-inputs">
+        <div class="inp-wrap">
+          <input type="number" class="r-hum" data-loc="${esc(loc)}" placeholder="—" min="0" max="100" step="1" inputmode="numeric">
+          <span class="inp-unit">%</span>
+        </div>
+        <div class="inp-wrap">
+          <input type="number" class="r-tmp" data-loc="${esc(loc)}" placeholder="—" min="-50" max="150" step="0.1" inputmode="decimal">
+          <span class="inp-unit">°F</span>
         </div>
       </div>
-    </div>
-  </div>
-  <div id="panel-table" class="panel">
-    <div class="tbl-wrap"><table><thead><tr><th>Time</th><th style="color:#38bdf8">TV %</th><th style="color:#a78bfa">Dresser %</th><th style="color:#34d399">Closet %</th><th></th></tr></thead><tbody id="tbl-body"></tbody></table></div>
-  </div>
-</div>
-<div class="drawer-overlay" id="addDrawer">
-  <div class="drawer">
-    <div class="drawer-header"><div class="drawer-title">Add Reading</div><button class="drawer-close" id="closeDrawer">&times;</button></div>
-    <div class="dt-row"><div class="fg"><label>Date</label><input type="date" id="add-date"></div><div class="fg"><label>Time</label><input type="time" id="add-time"></div></div>
-    <div class="sensor-inputs">
-      <div class="si tv"><div class="si-label">TV</div><div class="si-name">Next to TV</div><input type="number" id="add-tv" min="0" max="100" placeholder="&mdash;"></div>
-      <div class="si dresser"><div class="si-label">Dresser</div><div class="si-name">Bedroom dresser</div><input type="number" id="add-dresser" min="0" max="100" placeholder="&mdash;"></div>
-      <div class="si closet"><div class="si-label">Closet</div><div class="si-name">Bedroom closet</div><input type="number" id="add-closet" min="0" max="100" placeholder="&mdash;"></div>
-    </div>
-    <div class="drawer-actions"><button class="btn-save" id="saveReadingBtn">Save Reading</button><button class="btn-cancel" id="cancelDrawer">Cancel</button></div>
-  </div>
-</div>
-<div class="modal-overlay" id="editModal">
-  <div class="modal">
-    <h3>Edit Reading</h3><input type="hidden" id="edit-idx">
-    <div class="m-row"><div class="m-fg"><label style="color:var(--muted)">Date</label><input type="date" id="edit-date"></div><div class="m-fg"><label style="color:var(--muted)">Time</label><input type="time" id="edit-time"></div></div>
-    <div class="m-sensors">
-      <div class="m-fg tv"><label>TV (%)</label><input type="number" id="edit-tv" min="0" max="100"></div>
-      <div class="m-fg dresser"><label>Dresser (%)</label><input type="number" id="edit-dresser" min="0" max="100"></div>
-      <div class="m-fg closet"><label>Closet (%)</label><input type="number" id="edit-closet" min="0" max="100"></div>
-    </div>
-    <div class="m-actions"><button class="btn-primary" id="saveEditBtn">Save Changes</button><button class="btn-ghost" id="closeEditBtn">Cancel</button></div>
-  </div>
-</div>
-<div class="zip-overlay" id="zipModal">
-  <div class="zip-box">
-    <h2>📍 What's your ZIP code?</h2>
-    <p>We use this to show outdoor humidity for your area.</p>
-    <input type="text" id="zip-input" placeholder="e.g. 32092" maxlength="5" inputmode="numeric" autocomplete="postal-code">
-    <button class="btn-zip" id="zipSaveBtn">Save &amp; Continue</button>
-  </div>
-</div>
-<div class="toast" id="toast"></div>
-<script>
-const seed=[{date:'2026-09-02',time:'07:40',tv:59,dresser:66,closet:62},{date:'2026-09-02',time:'10:48',tv:56,dresser:62,closet:59},{date:'2026-09-02',time:'14:57',tv:54,dresser:60,closet:58},{date:'2026-09-02',time:'16:57',tv:56,dresser:62,closet:58},{date:'2026-09-02',time:'22:38',tv:55,dresser:61,closet:57},{date:'2026-09-03',time:'09:06',tv:62,dresser:69,closet:64},{date:'2026-09-03',time:'17:29',tv:57,dresser:61,closet:59},{date:'2026-09-03',time:'21:22',tv:54,dresser:59,closet:57},{date:'2026-09-04',time:'11:05',tv:63,dresser:70,closet:64},{date:'2026-09-04',time:'12:26',tv:58,dresser:63,closet:61},{date:'2026-09-04',time:'21:01',tv:58,dresser:63,closet:60},{date:'2026-09-05',time:'08:39',tv:63,dresser:70,closet:65},{date:'2026-09-05',time:'16:26',tv:55,dresser:59,closet:60},{date:'2026-09-06',time:'08:14',tv:63,dresser:69,closet:66},{date:'2026-09-06',time:'11:55',tv:57,dresser:60,closet:62},{date:'2026-09-06',time:'15:30',tv:52,dresser:53,closet:59},{date:'2026-09-06',time:'18:00',tv:53,dresser:57,closet:61},{date:'2026-09-06',time:'23:19',tv:59,dresser:63,closet:64},{date:'2026-09-07',time:'08:21',tv:63,dresser:68,closet:66},{date:'2026-09-07',time:'14:02',tv:59,dresser:63,closet:64}];
-const BAKED={'2026-09-02':{hiTemp:91,loTemp:77,hiHum:91,loHum:62,icon:'&#9925;',desc:'Partly cloudy'},'2026-09-03':{hiTemp:92,loTemp:78,hiHum:93,loHum:65,icon:'&#127782;',desc:'Drizzle'},'2026-09-04':{hiTemp:90,loTemp:77,hiHum:92,loHum:61,icon:'&#9925;',desc:'Partly cloudy'},'2026-09-05':{hiTemp:91,loTemp:76,hiHum:90,loHum:60,icon:'&#9925;',desc:'Partly cloudy'},'2026-09-06':{hiTemp:89,loTemp:76,hiHum:94,loHum:63,icon:'&#127783;',desc:'Rain showers'},'2026-09-07':{hiTemp:90,loTemp:77,hiHum:92,loHum:64,icon:'&#9925;',desc:'Partly cloudy'}};
-const SK='hum_r_v4',WK='hum_w_v4';
-const ZIPKEY='hh_zipcode',LLKEY='hh_latlng';
-async function getLatLng(){try{const c=localStorage.getItem(LLKEY);if(c){const ll=JSON.parse(c);if(ll&&ll.lat&&ll.lng)return ll;}const zip=localStorage.getItem(ZIPKEY);if(!zip)return null;const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zip)}&count=1&language=en&format=json`);const d=await r.json();if(!d.results||!d.results.length)return null;const ll={lat:d.results[0].latitude,lng:d.results[0].longitude};localStorage.setItem(LLKEY,JSON.stringify(ll));return ll;}catch(e){console.log('geocode:',e.message);return null;}}
+    </div>`).join('')}
+    <button class="btn btn-primary" style="margin-top:6px" onclick="saveReading()">Save Reading</button>`;
 
-let readings=[];try{const s=localStorage.getItem(SK);readings=s?JSON.parse(s):seed.slice();}catch{readings=seed.slice();}
-if(!readings.length)readings=seed.slice();
-let wxByDate=Object.assign({},BAKED);try{const w=localStorage.getItem(WK);if(w)Object.assign(wxByDate,JSON.parse(w));}catch{}
-function saveR(){try{localStorage.setItem(SK,JSON.stringify(readings));}catch{}}
-function saveW(){try{localStorage.setItem(WK,JSON.stringify(wxByDate));}catch{}}
-function sorted(){return[...readings].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));}
-function uDates(){return[...new Set(sorted().map(r=>r.date))];}
-function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),2600);}
-function fmtDate(d){const[y,m,day]=d.split('-');return new Date(+y,+m-1,+day).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});}
-function fmtTime(t){const[h,m]=t.split(':').map(Number);return`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'pm':'am'}`;}
-function wxIcon(c){if(c===0)return'&#9728;';if(c<=2)return'&#9925;';if(c<=3)return'&#9729;';if(c<=49)return'&#127787;';if(c<=59)return'&#127782;';if(c<=69)return'&#127783;';if(c<=79)return'&#127784;';if(c<=82)return'&#127783;';if(c<=99)return'&#9928;';return'&#127777;';}
-function wxDesc(c){if(c===0)return'Clear';if(c<=2)return'Partly cloudy';if(c<=3)return'Overcast';if(c<=49)return'Foggy';if(c<=59)return'Drizzle';if(c<=69)return'Rain';if(c<=79)return'Snow';if(c<=82)return'Showers';if(c<=99)return'Thunderstorm';return'Unknown';}
-function openDrawer(){const now=new Date();document.getElementById('add-date').value=now.toISOString().slice(0,10);document.getElementById('add-time').value=now.toTimeString().slice(0,5);document.getElementById('add-tv').value='';document.getElementById('add-dresser').value='';document.getElementById('add-closet').value='';document.getElementById('addDrawer').classList.add('open');setTimeout(()=>document.getElementById('add-tv').focus(),300);}
-function closeDrawer(){document.getElementById('addDrawer').classList.remove('open');}
-document.getElementById('openAddBtn').addEventListener('click',openDrawer);
-document.getElementById('closeDrawer').addEventListener('click',closeDrawer);
-document.getElementById('cancelDrawer').addEventListener('click',closeDrawer);
-document.getElementById('addDrawer').addEventListener('click',function(e){if(e.target===this)closeDrawer();});
-document.getElementById('saveReadingBtn').addEventListener('click',function(){const date=document.getElementById('add-date').value;const time=document.getElementById('add-time').value;const tv=parseInt(document.getElementById('add-tv').value);const dr=parseInt(document.getElementById('add-dresser').value);const cl=parseInt(document.getElementById('add-closet').value);if(!date||!time||isNaN(tv)||isNaN(dr)||isNaN(cl)){toast('Please fill in all three sensor values.','err');return;}readings.push({date,time,tv,dresser:dr,closet:cl});saveR();const today=new Date().toISOString().slice(0,10);if(date<today&&!wxByDate[date])fetchHist([date]);closeDrawer();toast('Reading saved \u2713','ok');refreshAll();});
-document.getElementById('add-closet').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('saveReadingBtn').click();});
-document.getElementById('tab-chart').addEventListener('click',function(){this.classList.add('active');document.getElementById('tab-table').classList.remove('active');document.getElementById('panel-chart').classList.add('active');document.getElementById('panel-table').classList.remove('active');renderChart();});
-document.getElementById('tab-table').addEventListener('click',function(){this.classList.add('active');document.getElementById('tab-chart').classList.remove('active');document.getElementById('panel-table').classList.add('active');document.getElementById('panel-chart').classList.remove('active');});
-async function fetchHist(dates){if(!dates.length)return;const ll=await getLatLng();if(!ll)return;const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${ll.lat}&longitude=${ll.lng}&start_date=${dates[0]}&end_date=${dates[dates.length-1]}&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York`;try{const r=await fetch(url);const d=await r.json();if(!d.daily)return;d.daily.time.forEach((date,i)=>{if(!dates.includes(date))return;wxByDate[date]={hiTemp:Math.round(d.daily.temperature_2m_max[i]),loTemp:Math.round(d.daily.temperature_2m_min[i]),hiHum:d.daily.relative_humidity_2m_max[i],loHum:d.daily.relative_humidity_2m_min[i],icon:wxIcon(d.daily.weathercode[i]),desc:wxDesc(d.daily.weathercode[i])};});saveW();refreshAll();}catch(e){console.log('wx:',e.message);}}
-async function loadCurrent(){const bar=document.getElementById('weather-bar');const ll=await getLatLng();if(!ll){bar.innerHTML='<p class="wx-loading">Enter your ZIP code above to load weather data.</p>';return;}try{const url=`https://api.open-meteo.com/v1/forecast?latitude=${ll.lat}&longitude=${ll.lng}&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min,weathercode&current_weather=true&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1`;const r=await fetch(url);const d=await r.json();const cw=d.current_weather,dl=d.daily,code=dl.weathercode[0];const hiT=Math.round(dl.temperature_2m_max[0]),loT=Math.round(dl.temperature_2m_min[0]),hiH=dl.relative_humidity_2m_max[0],loH=dl.relative_humidity_2m_min[0],curT=Math.round(cw.temperature);const now=new Date(),tk=now.toISOString().slice(0,10);wxByDate[tk]={hiTemp:hiT,loTemp:loT,hiHum:hiH,loHum:loH,icon:wxIcon(code),desc:wxDesc(code)};saveW();bar.innerHTML=`<div class="wx-icon">${wxIcon(code)}</div><div class="wx-div"></div><div class="wx-item"><span class="wx-label">Conditions</span><span class="wx-val">${wxDesc(code)}</span></div><div class="wx-item"><span class="wx-label">Current Temp</span><span class="wx-val">${curT}&deg;F</span></div><div class="wx-item"><span class="wx-label">Today High / Low</span><span class="wx-val">${hiT}&deg; / ${loT}&deg;</span></div><div class="wx-div"></div><div class="wx-item"><span class="wx-label">Outside Humidity Today</span><span class="wx-val">${loH}%&ndash;${hiH}%</span></div><div class="wx-date">St. Augustine, FL &middot; ${now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>`;refreshAll();}catch{bar.innerHTML='<p class="wx-loading">Live weather unavailable &mdash; open in browser for full data</p>';}}
-function updateCards(){const s=sorted();if(!s.length)return;const last=s[s.length-1];document.getElementById('cur-tv').textContent=last.tv;document.getElementById('cur-dresser').textContent=last.dresser;document.getElementById('cur-closet').textContent=last.closet;['tv','dresser','closet'].forEach(k=>{const vals=s.map(r=>r[k]).filter(v=>v!=null);document.getElementById('lo-'+k).textContent=Math.min(...vals);document.getElementById('hi-'+k).textContent=Math.max(...vals);document.getElementById('av-'+k).textContent=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);});}
-function renderTable(){const tbody=document.getElementById('tbl-body');const rows=sorted();const byDate={};rows.forEach(r=>{(byDate[r.date]=byDate[r.date]||[]).push(r);});let html='';Object.keys(byDate).sort().forEach(date=>{const wx=wxByDate[date];const wxH=wx?`<span class="wx-chip"><span>${wx.icon}</span><strong>${wx.desc}</strong></span><span class="wx-chip">&#127777; <strong>${wx.loTemp}&deg;&ndash;${wx.hiTemp}&deg;F</strong></span><span class="wx-chip">&#128167; Outside <strong>${wx.loHum}%&ndash;${wx.hiHum}%</strong></span>`:'<span class="wx-chip" style="opacity:.5">weather pending</span>';html+=`<tr class="dh"><td colspan="5"><span class="dh-date">${fmtDate(date)}</span><span class="dh-wx">${wxH}</span></td></tr>`;byDate[date].forEach(r=>{const idx=readings.indexOf(r);html+=`<tr class="dr"><td class="t-time">${fmtTime(r.time)}</td><td class="v-tv">${r.tv}</td><td class="v-dr">${r.dresser}</td><td class="v-cl">${r.closet}</td><td><div class="acts"><button class="ico-btn" data-edit="${idx}" title="Edit">&#9999;</button><button class="ico-btn del" data-del="${idx}" title="Delete">&#128465;</button></div></td></tr>`;});});tbody.innerHTML=html;tbody.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>openEdit(+btn.dataset.edit)));tbody.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',()=>deleteRow(+btn.dataset.del)));}
-function openEdit(idx){const r=readings[idx];document.getElementById('edit-idx').value=idx;document.getElementById('edit-date').value=r.date;document.getElementById('edit-time').value=r.time;document.getElementById('edit-tv').value=r.tv;document.getElementById('edit-dresser').value=r.dresser;document.getElementById('edit-closet').value=r.closet;document.getElementById('editModal').classList.add('open');}
-function closeEdit(){document.getElementById('editModal').classList.remove('open');}
-document.getElementById('closeEditBtn').addEventListener('click',closeEdit);
-document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeEdit();});
-document.getElementById('saveEditBtn').addEventListener('click',function(){const idx=parseInt(document.getElementById('edit-idx').value);readings[idx]={date:document.getElementById('edit-date').value,time:document.getElementById('edit-time').value,tv:parseInt(document.getElementById('edit-tv').value),dresser:parseInt(document.getElementById('edit-dresser').value),closet:parseInt(document.getElementById('edit-closet').value)};closeEdit();saveR();refreshAll();toast('Reading updated \u2713');});
-function deleteRow(idx){if(!confirm('Delete this reading?'))return;readings.splice(idx,1);saveR();refreshAll();toast('Reading deleted');}
-let ci=null;
-const stickyYPlugin={id:'stickyY',afterDraw(chart){const ov=document.getElementById('y-axis-overlay');if(!ov||ov.style.display==='none')return;const ys=chart.scales.y;if(!ys)return;const dpr=window.devicePixelRatio||1;const yW=Math.ceil(ys.right),H=chart.height;ov.width=yW*dpr;ov.height=H*dpr;ov.style.width=yW+'px';ov.style.height=H+'px';ov.style.display='block';const c2=ov.getContext('2d');c2.fillStyle='#161b22';c2.fillRect(0,0,ov.width,ov.height);c2.drawImage(chart.canvas,0,0,yW*dpr,H*dpr,0,0,yW*dpr,H*dpr);c2.strokeStyle='#2a3340';c2.lineWidth=dpr;c2.beginPath();c2.moveTo(yW*dpr-.5,0);c2.lineTo(yW*dpr-.5,H*dpr);c2.stroke();}};
-function renderChart(){
-  const range=document.getElementById('chart-range').value,sensor=document.getElementById('chart-sensor').value;
-  let data=sorted();
-  if(range==='entries7'){data=data.slice(-7);}
-  else if(range==='alltime'){/* all data */}
-  else if(range!=='all'){const c=new Date();c.setDate(c.getDate()-parseInt(range));data=data.filter(r=>new Date(r.date+'T'+r.time)>=c);}
-  const labels=data.map(r=>{const[,m,d]=r.date.split('-');return`${m}/${d}\n${fmtTime(r.time)}`;});
-  const oH=data.map(r=>wxByDate[r.date]?.hiHum??null),oL=data.map(r=>wxByDate[r.date]?.loHum??null);
-  const ds=[{label:'Outside Hi',data:oH,borderColor:'rgba(251,191,36,.45)',backgroundColor:'rgba(251,191,36,.07)',borderDash:[5,4],tension:.2,pointRadius:0,fill:'+1',yAxisID:'y'},{label:'Outside Lo',data:oL,borderColor:'rgba(251,191,36,.25)',backgroundColor:'rgba(251,191,36,.07)',borderDash:[5,4],tension:.2,pointRadius:0,fill:false,yAxisID:'y'}];
-  if(sensor==='all'||sensor==='tv')ds.push({label:'TV',data:data.map(r=>r.tv),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.07)',tension:.35,pointRadius:4,pointHoverRadius:7,yAxisID:'y',fill:false});
-  if(sensor==='all'||sensor==='dresser')ds.push({label:'Dresser',data:data.map(r=>r.dresser),borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.07)',tension:.35,pointRadius:4,pointHoverRadius:7,yAxisID:'y',fill:false});
-  if(sensor==='all'||sensor==='closet')ds.push({label:'Closet',data:data.map(r=>r.closet),borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.07)',tension:.35,pointRadius:4,pointHoverRadius:7,yAxisID:'y',fill:false});
-  const shouldScroll=range==='alltime'||data.length>7;
-  const scrollEl=document.getElementById('chart-scroll');
-  const canvas=document.getElementById('main-chart');
-  const ov=document.getElementById('y-axis-overlay');
-  const dpr=window.devicePixelRatio||1;
-  if(shouldScroll){
-    const cw=Math.max(data.length*80,600);
-    scrollEl.style.overflowX='auto';
-    canvas.style.setProperty('width',cw+'px','important');
-    canvas.style.height='340px';
-    canvas.width=cw*dpr;
-    canvas.height=340*dpr;
-    if(ov)ov.style.display='block';
-  } else {
-    scrollEl.style.overflowX='hidden';
-    if(ov)ov.style.display='none';
-    canvas.style.removeProperty('width');
-    canvas.style.height='';
-    canvas.setAttribute('height','340');
-    canvas.removeAttribute('width');
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('overlay').classList.add('vis');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('vis');
+  document.body.style.overflow = '';
+}
+
+async function saveReading() {
+  const date = document.getElementById('r-date').value;
+  const time = document.getElementById('r-time').value;
+  if (!date||!time) { toast('Please set date and time'); return; }
+  const recorded_at = new Date(`${date}T${time}:00`).toISOString();
+
+  const humEls = document.querySelectorAll('.r-hum');
+  const tmpEls = document.querySelectorAll('.r-tmp');
+  const entries = [];
+
+  for (let i=0; i<humEls.length; i++) {
+    const hv = humEls[i].value.trim();
+    if (!hv) continue;
+    const h = parseInt(hv,10);
+    if (isNaN(h)||h<0||h>100) { toast(`Invalid humidity for ${humEls[i].dataset.loc}`); return; }
+    const tv = tmpEls[i].value.trim();
+    entries.push({ home_id:ST.homeId, location:humEls[i].dataset.loc, humidity:h, temperature:tv?parseFloat(tv):null, recorded_at });
   }
-  const ctx=canvas.getContext('2d');
-  if(ci)ci.destroy();
-  ci=new Chart(ctx,{type:'line',data:{labels,datasets:ds},options:{responsive:!shouldScroll,maintainAspectRatio:!shouldScroll,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2530',borderColor:'#2a3340',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#7d8fa0',padding:12,callbacks:{title:i=>i[0].label.replace('\n',' '),label:c=>{if(c.dataset.label==='Outside Hi')return c.parsed.y!=null?` Outside high: ${c.parsed.y}%`:null;if(c.dataset.label==='Outside Lo')return c.parsed.y!=null?` Outside low: ${c.parsed.y}%`:null;const e={TV:'TV',Dresser:'Dresser',Closet:'Closet'};return` ${e[c.dataset.label]||c.dataset.label}: ${c.parsed.y}%`;},afterBody:i=>{const wx=wxByDate[data[i[0].dataIndex]?.date];return wx?['',` ${wx.desc} - ${wx.loTemp}-${wx.hiTemp}F`]:[];}}}},scales:{x:{ticks:{color:'#7d8fa0',font:{size:10,family:'DM Sans'},maxRotation:45},grid:{color:'#2a3340'}},y:{ticks:{color:'#7d8fa0',font:{family:'DM Mono',size:11},callback:v=>v+'%'},grid:{color:'#2a3340'},min:35,max:100}}},plugins:shouldScroll?[stickyYPlugin]:[]});
+
+  if (!entries.length) { toast('Enter at least one humidity value'); return; }
+
+  try {
+    const saved = await sb('POST','humidity_readings',entries,{'Prefer':'return=representation'});
+    const newRx = saved || entries;
+    ST.readings = [...newRx,...ST.readings].sort((a,b)=>new Date(b.recorded_at)-new Date(a.recorded_at));
+    closeDrawer();
+    toast(`${entries.length} reading${entries.length!==1?'s':''} saved!`);
+    if (ST.tab==='summary') renderSummary();
+    if (ST.tab==='history') renderHistory();
+  } catch(e) { toast('Failed to save readings'); console.error(e); }
 }
-document.getElementById('chart-range').addEventListener('change',renderChart);
-document.getElementById('chart-sensor').addEventListener('change',renderChart);
-function refreshAll(){updateCards();renderTable();if(document.getElementById('panel-chart').classList.contains('active'))renderChart();}
-refreshAll();
-// ZIP modal
-document.getElementById('zipSaveBtn').addEventListener('click',function(){
-  const val=document.getElementById('zip-input').value.trim();
-  if(!/^\d{5}$/.test(val)){document.getElementById('zip-input').style.outline='1px solid var(--danger)';document.getElementById('zip-input').focus();return;}
-  localStorage.setItem(ZIPKEY,val);
-  localStorage.removeItem(LLKEY);
-  document.getElementById('zipModal').classList.remove('open');
-  loadCurrent();
-  (async()=>{const today=new Date().toISOString().slice(0,10);const missing=uDates().filter(d=>d<today&&!wxByDate[d]);if(missing.length)await fetchHist(missing.sort());})();
-});
-document.getElementById('zip-input').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('zipSaveBtn').click();});
-// Init: show ZIP modal if no ZIP stored, otherwise load weather
-if(!localStorage.getItem(ZIPKEY)){
-  document.getElementById('zipModal').classList.add('open');
-  setTimeout(()=>document.getElementById('zip-input').focus(),100);
-} else {
-  loadCurrent();
-  (async()=>{const today=new Date().toISOString().slice(0,10);const missing=uDates().filter(d=>d<today&&!wxByDate[d]);if(missing.length)await fetchHist(missing.sort());})();
+
+/* ══ SHARE ══════════════════════════════════════════════════ */
+async function doShare() {
+  const url = `${location.origin}/?home=${ST.homeId}`;
+  if (navigator.share) {
+    try { await navigator.share({ title:'My Humidity Tracker', text:'Track indoor humidity with me', url }); return; }
+    catch(e) { if (e.name==='AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast('Link copied! Anyone with this link can view your readings.'); }
+  catch(e) { toast('Could not copy link'); }
 }
+
+/* ══ EXPORT / PDF ════════════════════════════════════════════ */
+function openExportModal() {
+  const today = todayISO();
+  const ago30 = new Date(); ago30.setDate(ago30.getDate()-30);
+  document.getElementById('exp-from').value = ago30.toISOString().slice(0,10);
+  document.getElementById('exp-to').value   = today;
+  const locs = ST.home?.locations||[];
+  document.getElementById('exp-locs').innerHTML = locs.map(loc=>`
+    <label class="chk-label">
+      <input type="checkbox" value="${esc(loc)}" checked>
+      ${esc(loc)}
+    </label>`).join('');
+  document.getElementById('export-modal').hidden = false;
+}
+
+function closeExportModal() { document.getElementById('export-modal').hidden = true; }
+
+function generateReport() {
+  const from = document.getElementById('exp-from').value;
+  const to   = document.getElementById('exp-to').value;
+  const selLocs = [...document.querySelectorAll('#exp-locs input:checked')].map(el=>el.value);
+  if (!selLocs.length) { toast('Select at least one location'); return; }
+
+  const dFrom = new Date(from+'T00:00:00');
+  const dTo   = new Date(to+'T23:59:59');
+
+  const filtered = ST.readings.filter(r=>{
+    const d = new Date(r.recorded_at);
+    return d>=dFrom && d<=dTo && selLocs.includes(r.location);
+  }).sort((a,b)=>new Date(b.recorded_at)-new Date(a.recorded_at));
+
+  const summary = selLocs.map(loc=>{
+    const rx = filtered.filter(r=>r.location===loc);
+    if (!rx.length) return { loc, count:0, min:'—', max:'—', avg:'—' };
+    const hs = rx.map(r=>r.humidity);
+    return { loc, count:rx.length, min:Math.min(...hs), max:Math.max(...hs), avg:Math.round(hs.reduce((a,b)=>a+b,0)/hs.length) };
+  });
+
+  const now = new Date().toLocaleString('en-US');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Humidity Report</title>
+<style>
+  body{font-family:Arial,sans-serif;color:#111;background:#fff;max-width:800px;margin:0 auto;padding:28px}
+  h1{font-size:22px;margin-bottom:4px}
+  .meta{font-size:13px;color:#555;margin-bottom:20px;line-height:1.9}
+  .brand{font-size:12px;color:#999;margin-bottom:28px}
+  h2{font-size:15px;margin:28px 0 10px;border-bottom:1px solid #ddd;padding-bottom:6px;color:#333}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px}
+  th{background:#f4f4f4;text-align:left;padding:8px 10px;border:1px solid #ddd;font-weight:600}
+  td{padding:7px 10px;border:1px solid #ddd}
+  tr:nth-child(even){background:#fafafa}
+  .footer{margin-top:40px;font-size:11px;color:#bbb;border-top:1px solid #eee;padding-top:14px}
+  @media print{button{display:none}}
+</style>
+</head><body>
+<h1>💧 Humidity Report</h1>
+<div class="meta">
+  <b>ZIP Code:</b> ${esc(ST.home?.zip_code||'N/A')}<br>
+  <b>Date Range:</b> ${from} to ${to}<br>
+  <b>Generated:</b> ${now}
+</div>
+<div class="brand">trackhumidity.app</div>
+
+<h2>Summary by Location</h2>
+<table>
+  <tr><th>Location</th><th>Readings</th><th>Min</th><th>Max</th><th>Average</th></tr>
+  ${summary.map(s=>`<tr>
+    <td>${esc(s.loc)}</td><td>${s.count}</td>
+    <td>${s.min==='—'?'—':s.min+'%'}</td>
+    <td>${s.max==='—'?'—':s.max+'%'}</td>
+    <td>${s.avg==='—'?'—':s.avg+'%'}</td>
+  </tr>`).join('')}
+</table>
+
+<h2>All Readings</h2>
+<table>
+  <tr><th>Date</th><th>Time</th><th>Location</th><th>Humidity</th><th>Temp (°F)</th></tr>
+  ${filtered.map(r=>`<tr>
+    <td>${r.recorded_at.slice(0,10)}</td>
+    <td>${fmtTime(r.recorded_at)}</td>
+    <td>${esc(r.location)}</td>
+    <td>${r.humidity}%</td>
+    <td>${r.temperature!=null?r.temperature+'°':'—'}</td>
+  </tr>`).join('')}
+</table>
+
+<div class="footer">
+  Generated by Track Humidity — trackhumidity.app<br>
+  Powered by Dream App Lab — <a href="https://dreamapplab.com">dreamapplab.com</a>
+</div>
+<script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script>
+</body></html>`;
+
+  closeExportModal();
+  const w = window.open('','_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+  else toast('Allow pop-ups to generate the report');
+}
+
+/* ══ INIT ════════════════════════════════════════════════════ */
+async function init() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('SW:',e));
+  }
+
+  showScreen('loading');
+
+  const params = new URLSearchParams(location.search);
+  let homeId = params.get('home');
+
+  try {
+    if (!homeId) {
+      if (SUPABASE_KEY === 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE') {
+        throw new Error('SUPABASE_KEY not configured');
+      }
+      const data = await sb('POST','humidity_homes',{},{'Prefer':'return=representation'});
+      homeId = data[0].id;
+      history.replaceState(null,'',`/?home=${homeId}`);
+    }
+
+    ST.homeId = homeId;
+
+    const [homes, readings] = await Promise.all([
+      sb('GET',`humidity_homes?id=eq.${homeId}&select=*`),
+      sb('GET',`humidity_readings?home_id=eq.${homeId}&select=*&order=recorded_at.desc`)
+    ]);
+
+    if (!homes?.length) {
+      history.replaceState(null,'','/'); location.reload(); return;
+    }
+
+    ST.home     = homes[0];
+    ST.readings = readings || [];
+
+    if (!ST.home.zip_code) {
+      showScreen('zip');
+    } else if (!ST.home.locations?.length) {
+      showScreen('location');
+    } else {
+      showScreen('app'); renderApp(); fetchWeather();
+    }
+
+  } catch(e) {
+    console.error('init:', e);
+    const isKeyPlaceholder = SUPABASE_KEY === 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
+    document.getElementById('loading-screen').innerHTML = `
+      <div style="text-align:center;padding:28px;max-width:320px">
+        <div style="font-size:42px;margin-bottom:14px">⚠️</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:10px">
+          ${isKeyPlaceholder?'Setup Required':'Connection Error'}
+        </div>
+        <div style="font-size:13px;color:rgba(232,238,255,.5);line-height:1.7;margin-bottom:22px">
+          ${isKeyPlaceholder
+            ?'Open <code>index.html</code> and replace <code>PASTE_YOUR_SUPABASE_ANON_KEY_HERE</code> with your Supabase anon key.'
+            :'Failed to connect to Supabase. Check your internet connection and try again.'}
+        </div>
+        ${!isKeyPlaceholder?`<button onclick="location.reload()" class="btn btn-primary" style="display:inline-flex;width:auto;padding:12px 24px">Retry</button>`:''}
+      </div>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
