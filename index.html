@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Humidity Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--surface:#161b22;--surface2:#1e2530;--border:#2a3340;--text:#e6edf3;--muted:#7d8fa0;--tv:#38bdf8;--dresser:#a78bfa;--closet:#34d399;--accent:#38bdf8;--danger:#f87171;--warn:#fbbf24;--r:12px;--rs:8px}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5}
+.app{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px}
+.brand h1{font-size:1.6rem;font-weight:600;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+.brand p{color:var(--muted);font-size:.82rem;margin-top:2px}
+#weather-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;min-height:68px}
+.wx-loading{color:var(--muted);font-size:.85rem}
+.wx-item{display:flex;flex-direction:column;gap:2px}
+.wx-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.wx-val{font-family:'DM Mono',monospace;font-size:1.05rem;font-weight:500}
+.wx-icon{font-size:2rem;line-height:1}
+.wx-div{width:1px;height:36px;background:var(--border);flex-shrink:0}
+.wx-date{color:var(--muted);font-size:.8rem;margin-left:auto}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.card.tv::before{background:var(--tv)}.card.dresser::before{background:var(--dresser)}.card.closet::before{background:var(--closet)}
+.c-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.c-name{font-size:1rem;font-weight:500;margin-bottom:10px}
+.c-val{font-family:'DM Mono',monospace;font-size:2.6rem;font-weight:400;line-height:1}
+.c-pct{font-size:1rem;color:var(--muted);margin-left:2px}
+.c-stats{display:flex;gap:16px;margin-top:10px}
+.stat{font-size:.78rem}.stat span{color:var(--muted)}
+.card.tv .c-val{color:var(--tv)}.card.dresser .c-val{color:var(--dresser)}.card.closet .c-val{color:var(--closet)}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px;margin-bottom:20px;width:fit-content}
+.tab{padding:7px 20px;border-radius:var(--rs);font-size:.85rem;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .15s;font-family:inherit}
+.tab.active{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.tab:hover:not(.active){color:var(--text)}
+.panel{display:none}.panel.active{display:block}
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.chart-controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.chart-controls label{font-size:.8rem;color:var(--muted);margin-right:4px}
+select{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:6px 10px;font-family:inherit;font-size:.85rem;cursor:pointer}
+select:focus{outline:1px solid var(--accent)}
+canvas{width:100%!important}
+.legend{display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--surface2)}
+th{padding:10px 14px;font-size:.72rem;font-weight:500;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+td{padding:9px 14px;font-size:.86rem;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.dr:hover td{background:var(--surface2)}
+tr.dh td{background:var(--surface2);border-top:2px solid var(--border);border-bottom:1px solid var(--border);padding:10px 14px}
+tr.dh:first-child td{border-top:none}
+.dh-date{font-weight:600;font-size:.9rem;color:var(--text);margin-right:14px}
+.dh-wx{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wx-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:.75rem;color:var(--muted)}
+.wx-chip strong{color:var(--text);font-weight:500}
+.v-tv{color:var(--tv);font-family:'DM Mono',monospace;font-weight:500}
+.v-dr{color:var(--dresser);font-family:'DM Mono',monospace;font-weight:500}
+.v-cl{color:var(--closet);font-family:'DM Mono',monospace;font-weight:500}
+.t-time{color:var(--muted);font-size:.82rem;font-family:'DM Mono',monospace}
+.acts{display:flex;gap:6px}
+.ico-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .15s}
+.ico-btn:hover{background:var(--surface2);color:var(--text)}
+.ico-btn.del:hover{border-color:var(--danger);color:var(--danger)}
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:800;opacity:0;pointer-events:none;transition:opacity .25s}
+.drawer-overlay.open{opacity:1;pointer-events:all}
+.drawer{background:var(--surface);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:680px;padding:28px 24px 36px;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.drawer-overlay.open .drawer{transform:translateY(0)}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.drawer-title{font-size:1.1rem;font-weight:600}
+.drawer-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.drawer-close:hover{background:var(--surface2);color:var(--text)}
+.dt-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.fg{display:flex;flex-direction:column;gap:6px}
+.fg label{font-size:.78rem;color:var(--muted);font-weight:500}
+.fg input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:10px 12px;font-family:inherit;font-size:.95rem;width:100%}
+.fg input:focus{outline:1px solid var(--accent)}
+.sensor-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.si{display:flex;flex-direction:column;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.si-label{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.si.tv .si-label{color:var(--tv)}.si.dresser .si-label{color:var(--dresser)}.si.closet .si-label{color:var(--closet)}
+.si-name{font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.si input{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:10px 12px;font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:500;width:100%;text-align:center}
+.si.tv input:focus{outline:1px solid var(--tv)}.si.dresser input:focus{outline:1px solid var(--dresser)}.si.closet input:focus{outline:1px solid var(--closet)}
+.si input::placeholder{color:var(--border);font-size:1rem}
+.drawer-actions{display:flex;align-items:center;gap:12px}
+.btn-save{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:12px 28px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:opacity .15s;flex:1}
+.btn-save:hover{opacity:.88}
+.btn-cancel{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--rs);padding:12px 20px;font-family:inherit;font-size:.95rem;cursor:pointer;transition:all .15s}
+.btn-cancel:hover{color:var(--text);border-color:var(--muted)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:900}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;width:100%;max-width:520px;margin:20px}
+.modal h3{font-size:1.05rem;font-weight:600;margin-bottom:20px}
+.m-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.m-sensors{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.m-fg{display:flex;flex-direction:column;gap:5px}
+.m-fg label{font-size:.78rem;font-weight:500}
+.m-fg.tv label{color:var(--tv)}.m-fg.dresser label{color:var(--dresser)}.m-fg.closet label{color:var(--closet)}
+.m-fg input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:9px 12px;font-family:inherit;font-size:.9rem;width:100%}
+.m-fg input:focus{outline:1px solid var(--accent)}
+.m-actions{display:flex;align-items:center;gap:10px}
+.btn-primary{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:10px 24px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-primary:hover{opacity:.88}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--rs);padding:10px 20px;font-family:inherit;font-size:.9rem;cursor:pointer;transition:all .15s}
+.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+.btn-add{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:10px 22px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;gap:6px}
+.btn-add:hover{opacity:.88}
+.toast{position:fixed;bottom:28px;right:28px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 20px;font-size:.88rem;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .25s;z-index:999}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:var(--closet)}.toast.err{border-color:var(--danger)}
+@media(max-width:650px){.cards{grid-template-columns:1fr}.sensor-inputs,.m-sensors{grid-template-columns:1fr}.dt-row,.m-row{grid-template-columns:1fr}}
+/* ZIP modal */
+.zip-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:1000}
+.zip-overlay.open{display:flex}
+.zip-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:32px 28px;width:100%;max-width:420px;margin:20px;text-align:center}
+.zip-box h2{font-size:1.3rem;font-weight:600;margin-bottom:10px}
+.zip-box p{color:var(--muted);font-size:.88rem;margin-bottom:22px;line-height:1.6}
+.zip-box input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:12px 16px;font-family:'DM Mono',monospace;font-size:1.5rem;font-weight:500;width:100%;text-align:center;letter-spacing:.2em;margin-bottom:16px;display:block}
+.zip-box input:focus{outline:1px solid var(--accent)}
+.zip-box .btn-zip{background:var(--accent);color:#0d1117;border:none;border-radius:var(--rs);padding:12px 28px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:opacity .15s;width:100%}
+.zip-box .btn-zip:hover{opacity:.88}
+/* Scrollable chart */
+.chart-outer{position:relative;overflow:hidden}
+.chart-scroll{overflow-y:hidden}
+#y-axis-overlay{position:absolute;top:0;left:0;pointer-events:none;z-index:3;display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><h1>Humidity <span>Tracker</span></h1><p>St. Augustine, FL &middot; 3 sensors &middot; tracking daily</p></div>
+    <button class="btn-add" id="openAddBtn"><span style="font-size:1.1rem;line-height:1">+</span> Add Reading</button>
+  </header>
+  <div id="weather-bar"><p class="wx-loading">Loading today's weather&hellip;</p></div>
+  <div class="cards">
+    <div class="card tv"><div class="c-label">Sensor 1</div><div class="c-name">Next to TV</div><div><span class="c-val" id="cur-tv">&mdash;</span><span class="c-pct">%</span></div><div class="c-stats"><div class="stat"><span>Low </span><strong id="lo-tv">&mdash;</strong>%</div><div class="stat"><span>High </span><strong id="hi-tv">&mdash;</strong>%</div><div class="stat"><span>Avg </span><strong id="av-tv">&mdash;</strong>%</div></div></div>
+    <div class="card dresser"><div class="c-label">Sensor 2</div><div class="c-name">Dresser</div><div><span class="c-val" id="cur-dresser">&mdash;</span><span class="c-pct">%</span></div><div class="c-stats"><div class="stat"><span>Low </span><strong id="lo-dresser">&mdash;</strong>%</div><div class="stat"><span>High </span><strong id="hi-dresser">&mdash;</strong>%</div><div class="stat"><span>Avg </span><strong id="av-dresser">&mdash;</strong>%</div></div></div>
+    <div class="card closet"><div class="c-label">Sensor 3</div><div class="c-name">Closet</div><div><span class="c-val" id="cur-closet">&mdash;</span><span class="c-pct">%</span></div><div class="c-stats"><div class="stat"><span>Low </span><strong id="lo-closet">&mdash;</strong>%</div><div class="stat"><span>High </span><strong id="hi-closet">&mdash;</strong>%</div><div class="stat"><span>Avg </span><strong id="av-closet">&mdash;</strong>%</div></div></div>
+  </div>
+  <div class="tabs"><button class="tab active" id="tab-chart">Chart</button><button class="tab" id="tab-table">All Readings</button></div>
+  <div id="panel-chart" class="panel active">
+    <div class="chart-wrap">
+      <div class="chart-controls">
+        <div><label>View:</label><select id="chart-range"><option value="entries7" selected>Last 7 Entries</option><option value="1">Last 24 hrs</option><option value="3">Last 3 days</option><option value="7">Last 7 days</option><option value="alltime">All Time</option></select></div>
+        <div><label>Sensor:</label><select id="chart-sensor"><option value="all">All sensors</option><option value="tv">TV</option><option value="dresser">Dresser</option><option value="closet">Closet</option></select></div>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:#38bdf8"></div>TV</div>
+        <div class="leg"><div class="dot" style="background:#a78bfa"></div>Dresser</div>
+        <div class="leg"><div class="dot" style="background:#34d399"></div>Closet</div>
+        <div class="leg"><div class="dot" style="background:#fbbf24;border-radius:2px;opacity:.7"></div><span style="opacity:.7">Outside humidity range</span></div>
+      </div>
+      <div class="chart-outer" id="chart-outer">
+        <canvas id="y-axis-overlay"></canvas>
+        <div class="chart-scroll" id="chart-scroll">
+          <canvas id="main-chart" height="340"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="panel-table" class="panel">
+    <div class="tbl-wrap"><table><thead><tr><th>Time</th><th style="color:#38bdf8">TV %</th><th style="color:#a78bfa">Dresser %</th><th style="color:#34d399">Closet %</th><th></th></tr></thead><tbody id="tbl-body"></tbody></table></div>
+  </div>
+</div>
+<div class="drawer-overlay" id="addDrawer">
+  <div class="drawer">
+    <div class="drawer-header"><div class="drawer-title">Add Reading</div><button class="drawer-close" id="closeDrawer">&times;</button></div>
+    <div class="dt-row"><div class="fg"><label>Date</label><input type="date" id="add-date"></div><div class="fg"><label>Time</label><input type="time" id="add-time"></div></div>
+    <div class="sensor-inputs">
+      <div class="si tv"><div class="si-label">TV</div><div class="si-name">Next to TV</div><input type="number" id="add-tv" min="0" max="100" placeholder="&mdash;"></div>
+      <div class="si dresser"><div class="si-label">Dresser</div><div class="si-name">Bedroom dresser</div><input type="number" id="add-dresser" min="0" max="100" placeholder="&mdash;"></div>
+      <div class="si closet"><div class="si-label">Closet</div><div class="si-name">Bedroom closet</div><input type="number" id="add-closet" min="0" max="100" placeholder="&mdash;"></div>
+    </div>
+    <div class="drawer-actions"><button class="btn-save" id="saveReadingBtn">Save Reading</button><button class="btn-cancel" id="cancelDrawer">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Edit Reading</h3><input type="hidden" id="edit-idx">
+    <div class="m-row"><div class="m-fg"><label style="color:var(--muted)">Date</label><input type="date" id="edit-date"></div><div class="m-fg"><label style="color:var(--muted)">Time</label><input type="time" id="edit-time"></div></div>
+    <div class="m-sensors">
+      <div class="m-fg tv"><label>TV (%)</label><input type="number" id="edit-tv" min="0" max="100"></div>
+      <div class="m-fg dresser"><label>Dresser (%)</label><input type="number" id="edit-dresser" min="0" max="100"></div>
+      <div class="m-fg closet"><label>Closet (%)</label><input type="number" id="edit-closet" min="0" max="100"></div>
+    </div>
+    <div class="m-actions"><button class="btn-primary" id="saveEditBtn">Save Changes</button><button class="btn-ghost" id="closeEditBtn">Cancel</button></div>
+  </div>
+</div>
+<div class="zip-overlay" id="zipModal">
+  <div class="zip-box">
+    <h2>📍 What's your ZIP code?</h2>
+    <p>We use this to show outdoor humidity for your area.</p>
+    <input type="text" id="zip-input" placeholder="e.g. 32092" maxlength="5" inputmode="numeric" autocomplete="postal-code">
+    <button class="btn-zip" id="zipSaveBtn">Save &amp; Continue</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const seed=[{date:'2026-09-02',time:'07:40',tv:59,dresser:66,closet:62},{date:'2026-09-02',time:'10:48',tv:56,dresser:62,closet:59},{date:'2026-09-02',time:'14:57',tv:54,dresser:60,closet:58},{date:'2026-09-02',time:'16:57',tv:56,dresser:62,closet:58},{date:'2026-09-02',time:'22:38',tv:55,dresser:61,closet:57},{date:'2026-09-03',time:'09:06',tv:62,dresser:69,closet:64},{date:'2026-09-03',time:'17:29',tv:57,dresser:61,closet:59},{date:'2026-09-03',time:'21:22',tv:54,dresser:59,closet:57},{date:'2026-09-04',time:'11:05',tv:63,dresser:70,closet:64},{date:'2026-09-04',time:'12:26',tv:58,dresser:63,closet:61},{date:'2026-09-04',time:'21:01',tv:58,dresser:63,closet:60},{date:'2026-09-05',time:'08:39',tv:63,dresser:70,closet:65},{date:'2026-09-05',time:'16:26',tv:55,dresser:59,closet:60},{date:'2026-09-06',time:'08:14',tv:63,dresser:69,closet:66},{date:'2026-09-06',time:'11:55',tv:57,dresser:60,closet:62},{date:'2026-09-06',time:'15:30',tv:52,dresser:53,closet:59},{date:'2026-09-06',time:'18:00',tv:53,dresser:57,closet:61},{date:'2026-09-06',time:'23:19',tv:59,dresser:63,closet:64},{date:'2026-09-07',time:'08:21',tv:63,dresser:68,closet:66},{date:'2026-09-07',time:'14:02',tv:59,dresser:63,closet:64}];
+const BAKED={'2026-09-02':{hiTemp:91,loTemp:77,hiHum:91,loHum:62,icon:'&#9925;',desc:'Partly cloudy'},'2026-09-03':{hiTemp:92,loTemp:78,hiHum:93,loHum:65,icon:'&#127782;',desc:'Drizzle'},'2026-09-04':{hiTemp:90,loTemp:77,hiHum:92,loHum:61,icon:'&#9925;',desc:'Partly cloudy'},'2026-09-05':{hiTemp:91,loTemp:76,hiHum:90,loHum:60,icon:'&#9925;',desc:'Partly cloudy'},'2026-09-06':{hiTemp:89,loTemp:76,hiHum:94,loHum:63,icon:'&#127783;',desc:'Rain showers'},'2026-09-07':{hiTemp:90,loTemp:77,hiHum:92,loHum:64,icon:'&#9925;',desc:'Partly cloudy'}};
+const SK='hum_r_v4',WK='hum_w_v4';
+const ZIPKEY='hh_zipcode',LLKEY='hh_latlng';
+async function getLatLng(){try{const c=localStorage.getItem(LLKEY);if(c){const ll=JSON.parse(c);if(ll&&ll.lat&&ll.lng)return ll;}const zip=localStorage.getItem(ZIPKEY);if(!zip)return null;const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zip)}&count=1&language=en&format=json`);const d=await r.json();if(!d.results||!d.results.length)return null;const ll={lat:d.results[0].latitude,lng:d.results[0].longitude};localStorage.setItem(LLKEY,JSON.stringify(ll));return ll;}catch(e){console.log('geocode:',e.message);return null;}}
+
+let readings=[];try{const s=localStorage.getItem(SK);readings=s?JSON.parse(s):seed.slice();}catch{readings=seed.slice();}
+if(!readings.length)readings=seed.slice();
+let wxByDate=Object.assign({},BAKED);try{const w=localStorage.getItem(WK);if(w)Object.assign(wxByDate,JSON.parse(w));}catch{}
+function saveR(){try{localStorage.setItem(SK,JSON.stringify(readings));}catch{}}
+function saveW(){try{localStorage.setItem(WK,JSON.stringify(wxByDate));}catch{}}
+function sorted(){return[...readings].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));}
+function uDates(){return[...new Set(sorted().map(r=>r.date))];}
+function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),2600);}
+function fmtDate(d){const[y,m,day]=d.split('-');return new Date(+y,+m-1,+day).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});}
+function fmtTime(t){const[h,m]=t.split(':').map(Number);return`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'pm':'am'}`;}
+function wxIcon(c){if(c===0)return'&#9728;';if(c<=2)return'&#9925;';if(c<=3)return'&#9729;';if(c<=49)return'&#127787;';if(c<=59)return'&#127782;';if(c<=69)return'&#127783;';if(c<=79)return'&#127784;';if(c<=82)return'&#127783;';if(c<=99)return'&#9928;';return'&#127777;';}
+function wxDesc(c){if(c===0)return'Clear';if(c<=2)return'Partly cloudy';if(c<=3)return'Overcast';if(c<=49)return'Foggy';if(c<=59)return'Drizzle';if(c<=69)return'Rain';if(c<=79)return'Snow';if(c<=82)return'Showers';if(c<=99)return'Thunderstorm';return'Unknown';}
+function openDrawer(){const now=new Date();document.getElementById('add-date').value=now.toISOString().slice(0,10);document.getElementById('add-time').value=now.toTimeString().slice(0,5);document.getElementById('add-tv').value='';document.getElementById('add-dresser').value='';document.getElementById('add-closet').value='';document.getElementById('addDrawer').classList.add('open');setTimeout(()=>document.getElementById('add-tv').focus(),300);}
+function closeDrawer(){document.getElementById('addDrawer').classList.remove('open');}
+document.getElementById('openAddBtn').addEventListener('click',openDrawer);
+document.getElementById('closeDrawer').addEventListener('click',closeDrawer);
+document.getElementById('cancelDrawer').addEventListener('click',closeDrawer);
+document.getElementById('addDrawer').addEventListener('click',function(e){if(e.target===this)closeDrawer();});
+document.getElementById('saveReadingBtn').addEventListener('click',function(){const date=document.getElementById('add-date').value;const time=document.getElementById('add-time').value;const tv=parseInt(document.getElementById('add-tv').value);const dr=parseInt(document.getElementById('add-dresser').value);const cl=parseInt(document.getElementById('add-closet').value);if(!date||!time||isNaN(tv)||isNaN(dr)||isNaN(cl)){toast('Please fill in all three sensor values.','err');return;}readings.push({date,time,tv,dresser:dr,closet:cl});saveR();const today=new Date().toISOString().slice(0,10);if(date<today&&!wxByDate[date])fetchHist([date]);closeDrawer();toast('Reading saved \u2713','ok');refreshAll();});
+document.getElementById('add-closet').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('saveReadingBtn').click();});
+document.getElementById('tab-chart').addEventListener('click',function(){this.classList.add('active');document.getElementById('tab-table').classList.remove('active');document.getElementById('panel-chart').classList.add('active');document.getElementById('panel-table').classList.remove('active');renderChart();});
+document.getElementById('tab-table').addEventListener('click',function(){this.classList.add('active');document.getElementById('tab-chart').classList.remove('active');document.getElementById('panel-table').classList.add('active');document.getElementById('panel-chart').classList.remove('active');});
+async function fetchHist(dates){if(!dates.length)return;const ll=await getLatLng();if(!ll)return;const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${ll.lat}&longitude=${ll.lng}&start_date=${dates[0]}&end_date=${dates[dates.length-1]}&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York`;try{const r=await fetch(url);const d=await r.json();if(!d.daily)return;d.daily.time.forEach((date,i)=>{if(!dates.includes(date))return;wxByDate[date]={hiTemp:Math.round(d.daily.temperature_2m_max[i]),loTemp:Math.round(d.daily.temperature_2m_min[i]),hiHum:d.daily.relative_humidity_2m_max[i],loHum:d.daily.relative_humidity_2m_min[i],icon:wxIcon(d.daily.weathercode[i]),desc:wxDesc(d.daily.weathercode[i])};});saveW();refreshAll();}catch(e){console.log('wx:',e.message);}}
+async function loadCurrent(){const bar=document.getElementById('weather-bar');const ll=await getLatLng();if(!ll){bar.innerHTML='<p class="wx-loading">Enter your ZIP code above to load weather data.</p>';return;}try{const url=`https://api.open-meteo.com/v1/forecast?latitude=${ll.lat}&longitude=${ll.lng}&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min,weathercode&current_weather=true&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1`;const r=await fetch(url);const d=await r.json();const cw=d.current_weather,dl=d.daily,code=dl.weathercode[0];const hiT=Math.round(dl.temperature_2m_max[0]),loT=Math.round(dl.temperature_2m_min[0]),hiH=dl.relative_humidity_2m_max[0],loH=dl.relative_humidity_2m_min[0],curT=Math.round(cw.temperature);const now=new Date(),tk=now.toISOString().slice(0,10);wxByDate[tk]={hiTemp:hiT,loTemp:loT,hiHum:hiH,loHum:loH,icon:wxIcon(code),desc:wxDesc(code)};saveW();bar.innerHTML=`<div class="wx-icon">${wxIcon(code)}</div><div class="wx-div"></div><div class="wx-item"><span class="wx-label">Conditions</span><span class="wx-val">${wxDesc(code)}</span></div><div class="wx-item"><span class="wx-label">Current Temp</span><span class="wx-val">${curT}&deg;F</span></div><div class="wx-item"><span class="wx-label">Today High / Low</span><span class="wx-val">${hiT}&deg; / ${loT}&deg;</span></div><div class="wx-div"></div><div class="wx-item"><span class="wx-label">Outside Humidity Today</span><span class="wx-val">${loH}%&ndash;${hiH}%</span></div><div class="wx-date">St. Augustine, FL &middot; ${now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>`;refreshAll();}catch{bar.innerHTML='<p class="wx-loading">Live weather unavailable &mdash; open in browser for full data</p>';}}
+function updateCards(){const s=sorted();if(!s.length)return;const last=s[s.length-1];document.getElementById('cur-tv').textContent=last.tv;document.getElementById('cur-dresser').textContent=last.dresser;document.getElementById('cur-closet').textContent=last.closet;['tv','dresser','closet'].forEach(k=>{const vals=s.map(r=>r[k]).filter(v=>v!=null);document.getElementById('lo-'+k).textContent=Math.min(...vals);document.getElementById('hi-'+k).textContent=Math.max(...vals);document.getElementById('av-'+k).textContent=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);});}
+function renderTable(){const tbody=document.getElementById('tbl-body');const rows=sorted();const byDate={};rows.forEach(r=>{(byDate[r.date]=byDate[r.date]||[]).push(r);});let html='';Object.keys(byDate).sort().forEach(date=>{const wx=wxByDate[date];const wxH=wx?`<span class="wx-chip"><span>${wx.icon}</span><strong>${wx.desc}</strong></span><span class="wx-chip">&#127777; <strong>${wx.loTemp}&deg;&ndash;${wx.hiTemp}&deg;F</strong></span><span class="wx-chip">&#128167; Outside <strong>${wx.loHum}%&ndash;${wx.hiHum}%</strong></span>`:'<span class="wx-chip" style="opacity:.5">weather pending</span>';html+=`<tr class="dh"><td colspan="5"><span class="dh-date">${fmtDate(date)}</span><span class="dh-wx">${wxH}</span></td></tr>`;byDate[date].forEach(r=>{const idx=readings.indexOf(r);html+=`<tr class="dr"><td class="t-time">${fmtTime(r.time)}</td><td class="v-tv">${r.tv}</td><td class="v-dr">${r.dresser}</td><td class="v-cl">${r.closet}</td><td><div class="acts"><button class="ico-btn" data-edit="${idx}" title="Edit">&#9999;</button><button class="ico-btn del" data-del="${idx}" title="Delete">&#128465;</button></div></td></tr>`;});});tbody.innerHTML=html;tbody.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>openEdit(+btn.dataset.edit)));tbody.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',()=>deleteRow(+btn.dataset.del)));}
+function openEdit(idx){const r=readings[idx];document.getElementById('edit-idx').value=idx;document.getElementById('edit-date').value=r.date;document.getElementById('edit-time').value=r.time;document.getElementById('edit-tv').value=r.tv;document.getElementById('edit-dresser').value=r.dresser;document.getElementById('edit-closet').value=r.closet;document.getElementById('editModal').classList.add('open');}
+function closeEdit(){document.getElementById('editModal').classList.remove('open');}
+document.getElementById('closeEditBtn').addEventListener('click',closeEdit);
+document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeEdit();});
+document.getElementById('saveEditBtn').addEventListener('click',function(){const idx=parseInt(document.getElementById('edit-idx').value);readings[idx]={date:document.getElementById('edit-date').value,time:document.getElementById('edit-time').value,tv:parseInt(document.getElementById('edit-tv').value),dresser:parseInt(document.getElementById('edit-dresser').value),closet:parseInt(document.getElementById('edit-closet').value)};closeEdit();saveR();refreshAll();toast('Reading updated \u2713');});
+function deleteRow(idx){if(!confirm('Delete this reading?'))return;readings.splice(idx,1);saveR();refreshAll();toast('Reading deleted');}
+let ci=null;
+const stickyYPlugin={id:'stickyY',afterDraw(chart){const ov=document.getElementById('y-axis-overlay');if(!ov||ov.style.display==='none')return;const ys=chart.scales.y;if(!ys)return;const dpr=window.devicePixelRatio||1;const yW=Math.ceil(ys.right),H=chart.height;ov.width=yW*dpr;ov.height=H*dpr;ov.style.width=yW+'px';ov.style.height=H+'px';ov.style.display='block';const c2=ov.getContext('2d');c2.fillStyle='#161b22';c2.fillRect(0,0,ov.width,ov.height);c2.drawImage(chart.canvas,0,0,yW*dpr,H*dpr,0,0,yW*dpr,H*dpr);c2.strokeStyle='#2a3340';c2.lineWidth=dpr;c2.beginPath();c2.moveTo(yW*dpr-.5,0);c2.lineTo(yW*dpr-.5,H*dpr);c2.stroke();}};
+function renderChart(){
+  const range=document.getElementById('chart-range').value,sensor=document.getElementById('chart-sensor').value;
+  let data=sorted();
+  if(range==='entries7'){data=data.slice(-7);}
+  else if(range==='alltime'){/* all data */}
+  else if(range!=='all'){const c=new Date();c.setDate(c.getDate()-parseInt(range));data=data.filter(r=>new Date(r.date+'T'+r.time)>=c);}
+  const labels=data.map(r=>{const[,m,d]=r.date.split('-');return`${m}/${d}\n${fmtTime(r.time)}`;});
+  const oH=data.map(r=>wxByDate[r.date]?.hiHum??null),oL=data.map(r=>wxByDate[r.date]?.loHum??null);
+  const ds=[{label:'Outside Hi',data:oH,borderColor:'rgba(251,191,36,.45)',backgroundColor:'rgba(251,191,36,.07)',borderDash:[5,4],tension:.2,pointRadius:0,fill:'+1',yAxisID:'y'},{label:'Outside Lo',data:oL,borderColor:'rgba(251,191,36,.25)',backgroundColor:'rgba(251,191,36,.07)',borderDash:[5,4],tension:.2,pointRadius:0,fill:false,yAxisID:'y'}];
+  if(sensor==='all'||sensor==='tv')ds.push({label:'TV',data:data.map(r=>r.tv),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.07)',tension:.35,pointRadius:4,pointHoverRadius:7,yAxisID:'y',fill:false});
+  if(sensor==='all'||sensor==='dresser')ds.push({label:'Dresser',data:data.map(r=>r.dresser),borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.07)',tension:.35,pointRadius:4,pointHoverRadius:7,yAxisID:'y',fill:false});
+  if(sensor==='all'||sensor==='closet')ds.push({label:'Closet',data:data.map(r=>r.closet),borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.07)',tension:.35,pointRadius:4,pointHoverRadius:7,yAxisID:'y',fill:false});
+  const shouldScroll=range==='alltime'||data.length>7;
+  const scrollEl=document.getElementById('chart-scroll');
+  const canvas=document.getElementById('main-chart');
+  const ov=document.getElementById('y-axis-overlay');
+  const dpr=window.devicePixelRatio||1;
+  if(shouldScroll){
+    const cw=Math.max(data.length*80,600);
+    scrollEl.style.overflowX='auto';
+    canvas.style.setProperty('width',cw+'px','important');
+    canvas.style.height='340px';
+    canvas.width=cw*dpr;
+    canvas.height=340*dpr;
+    if(ov)ov.style.display='block';
+  } else {
+    scrollEl.style.overflowX='hidden';
+    if(ov)ov.style.display='none';
+    canvas.style.removeProperty('width');
+    canvas.style.height='';
+    canvas.setAttribute('height','340');
+    canvas.removeAttribute('width');
+  }
+  const ctx=canvas.getContext('2d');
+  if(ci)ci.destroy();
+  ci=new Chart(ctx,{type:'line',data:{labels,datasets:ds},options:{responsive:!shouldScroll,maintainAspectRatio:!shouldScroll,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2530',borderColor:'#2a3340',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#7d8fa0',padding:12,callbacks:{title:i=>i[0].label.replace('\n',' '),label:c=>{if(c.dataset.label==='Outside Hi')return c.parsed.y!=null?` Outside high: ${c.parsed.y}%`:null;if(c.dataset.label==='Outside Lo')return c.parsed.y!=null?` Outside low: ${c.parsed.y}%`:null;const e={TV:'TV',Dresser:'Dresser',Closet:'Closet'};return` ${e[c.dataset.label]||c.dataset.label}: ${c.parsed.y}%`;},afterBody:i=>{const wx=wxByDate[data[i[0].dataIndex]?.date];return wx?['',` ${wx.desc} - ${wx.loTemp}-${wx.hiTemp}F`]:[];}}}},scales:{x:{ticks:{color:'#7d8fa0',font:{size:10,family:'DM Sans'},maxRotation:45},grid:{color:'#2a3340'}},y:{ticks:{color:'#7d8fa0',font:{family:'DM Mono',size:11},callback:v=>v+'%'},grid:{color:'#2a3340'},min:35,max:100}}},plugins:shouldScroll?[stickyYPlugin]:[]});
+}
+document.getElementById('chart-range').addEventListener('change',renderChart);
+document.getElementById('chart-sensor').addEventListener('change',renderChart);
+function refreshAll(){updateCards();renderTable();if(document.getElementById('panel-chart').classList.contains('active'))renderChart();}
+refreshAll();
+// ZIP modal
+document.getElementById('zipSaveBtn').addEventListener('click',function(){
+  const val=document.getElementById('zip-input').value.trim();
+  if(!/^\d{5}$/.test(val)){document.getElementById('zip-input').style.outline='1px solid var(--danger)';document.getElementById('zip-input').focus();return;}
+  localStorage.setItem(ZIPKEY,val);
+  localStorage.removeItem(LLKEY);
+  document.getElementById('zipModal').classList.remove('open');
+  loadCurrent();
+  (async()=>{const today=new Date().toISOString().slice(0,10);const missing=uDates().filter(d=>d<today&&!wxByDate[d]);if(missing.length)await fetchHist(missing.sort());})();
+});
+document.getElementById('zip-input').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('zipSaveBtn').click();});
+// Init: show ZIP modal if no ZIP stored, otherwise load weather
+if(!localStorage.getItem(ZIPKEY)){
+  document.getElementById('zipModal').classList.add('open');
+  setTimeout(()=>document.getElementById('zip-input').focus(),100);
+} else {
+  loadCurrent();
+  (async()=>{const today=new Date().toISOString().slice(0,10);const missing=uDates().filter(d=>d<today&&!wxByDate[d]);if(missing.length)await fetchHist(missing.sort());})();
+}
+</script>
+</body>
+</html>
