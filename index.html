@@ -1106,7 +1106,12 @@ function renderSummary() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const name = ST.user?.user_metadata?.name?.split(' ')[0] || '';
-  html += `<div style="font-size:22px;font-weight:700;margin-bottom:16px">${greeting}${name ? ', '+name : ''}! 👋</div>`;
+  const greetingHtml = name
+    ? `<div style="font-size:22px;font-weight:700;text-align:center;margin-bottom:16px;line-height:1.35">
+        ${greeting},<br>${name}! 👋
+       </div>`
+    : `<div style="font-size:22px;font-weight:700;text-align:center;margin-bottom:16px">${greeting}! 👋</div>`;
+  html += greetingHtml;
 
   /* Outdoor card */
   html += '<div class="card outdoor-card">';
