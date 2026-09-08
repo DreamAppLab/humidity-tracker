@@ -731,8 +731,17 @@ async function saveZip() {
   try {
     const geo = await geocodeZip(zip);
     if (!geo) throw new Error('not found');
-    await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { zip_code: zip, lat: geo.lat, lng: geo.lng });
-    ST.home.zip_code = zip; ST.home.lat = geo.lat; ST.home.lng = geo.lng;
+    if (!ST.homeId) {
+      // First-time setup: create the home record now that we have a valid ZIP
+      const data = await sb('POST', 'humidity_homes', { zip_code: zip, lat: geo.lat, lng: geo.lng }, { 'Prefer': 'return=representation' });
+      ST.homeId = data[0].id;
+      ST.home   = data[0];
+      history.replaceState(null, '', `/?home=${ST.homeId}`);
+    } else {
+      // Changing ZIP on an existing home
+      await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { zip_code: zip, lat: geo.lat, lng: geo.lng });
+      ST.home.zip_code = zip; ST.home.lat = geo.lat; ST.home.lng = geo.lng;
+    }
     showScreen('location');
   } catch(e) {
     errEl.textContent = 'Could not find that ZIP code. Please try again.';
@@ -1382,9 +1391,8 @@ async function init() {
 
   try {
     if (!homeId) {
-      const data = await sb('POST','humidity_homes',{},{'Prefer':'return=representation'});
-      homeId = data[0].id;
-      history.replaceState(null,'',`/?home=${homeId}`);
+      showScreen('zip');
+      return;
     }
 
     ST.homeId = homeId;
