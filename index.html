@@ -1079,7 +1079,7 @@ function switchTab(tab) {
 function maybeShowIOSBanner() {
   const isIOS       = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = window.navigator.standalone === true;
-  const dismissed   = localStorage.getItem('hh_install_dismissed');
+  const dismissed   = localStorage.getItem('trackhumidity_banner_dismissed');
   if (!isIOS || isStandalone || dismissed) return;
 
   document.getElementById('ios-banner').classList.remove('hidden');
@@ -1092,7 +1092,7 @@ function hideIOSBanner() {
 }
 
 function dismissIOSBanner() {
-  localStorage.setItem('hh_install_dismissed', '1');
+  localStorage.setItem('trackhumidity_banner_dismissed', 'true');
   hideIOSBanner();
 }
 
