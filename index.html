@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Humidity">
-  <title>💧 Humidity Tracker</title>
+  <title>💧 TrackHumidity</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#3B82F6">
   <link rel="apple-touch-icon" href="/icon-192.png">
@@ -196,6 +196,12 @@
     }
     .outdoor-temp { font-size: 15px; color: var(--sub); font-family: 'DM Mono', monospace; }
     .outdoor-loading { color: var(--muted); font-size: 13px; }
+    .outdoor-forecast {
+      display: flex; flex-wrap: wrap; gap: 6px 18px;
+      margin-top: 9px; font-size: 13px; color: var(--sub);
+      font-family: 'DM Mono', monospace;
+    }
+    .of-item strong { color: var(--text); }
 
     /* ─── Location cards ─────────────────────────────── */
     .loc-card { border-left: 3px solid var(--border); }
@@ -502,7 +508,7 @@
 <div id="welcome-screen" class="setup-screen" hidden>
   <div class="setup-card">
     <div class="welcome-logo">💧</div>
-    <div class="welcome-title">Track Humidity</div>
+    <div class="welcome-title">TrackHumidity</div>
     <div class="welcome-sub">Monitor indoor humidity across your home.<br>Keep your family comfortable and mold-free.</div>
     <button class="btn btn-primary" onclick="showScreen('signup')">Create Account</button>
     <div class="auth-divider">or</div>
@@ -585,7 +591,7 @@
 <!-- ════════════════════════ MAIN APP ═══════════════════════ -->
 <div id="app" hidden>
   <header>
-    <span class="app-title"><span class="droplet">💧</span> Humidity Tracker</span>
+    <span class="app-title"><span class="droplet">💧</span> TrackHumidity</span>
     <button class="share-btn" onclick="doShare()" title="Share">📤</button>
   </header>
 
@@ -702,7 +708,9 @@ const ST = {
   chartRange: '7entries',
   editId:   null,
   editDate: null,
-  user:     null    // supabase User object
+  user:        null,  // supabase User object
+  weatherDaily: null, // { dates, tempMax, tempMin, humMax, humMin }
+  summaryChart: null
 };
 
 const tempLocs = []; // for location-setup screen
@@ -796,19 +804,50 @@ async function sb(method, path, body, extra = {}) {
 async function fetchWeather() {
   if (!ST.home?.lat) return;
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ST.home.lat}&longitude=${ST.home.lng}&current=relative_humidity_2m,temperature_2m,weather_code&temperature_unit=fahrenheit`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ST.home.lat}&longitude=${ST.home.lng}`
+      + `&current=relative_humidity_2m,temperature_2m,weather_code`
+      + `&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min`
+      + `&temperature_unit=fahrenheit&timezone=auto&past_days=7`;
     const d = await (await fetch(url)).json();
     if (d.current) {
       ST.weather = {
         humidity: d.current.relative_humidity_2m,
-        temp: Math.round(d.current.temperature_2m * 10) / 10,
-        code: d.current.weather_code
+        temp:     Math.round(d.current.temperature_2m * 10) / 10,
+        code:     d.current.weather_code
       };
-      if (ST.tab === 'summary') renderSummary();
     }
+    if (d.daily) {
+      const today = todayISO();
+      const ti = d.daily.time.indexOf(today);
+      if (!ST.weather) ST.weather = {};
+      ST.weather.todayHighTemp = ti >= 0 ? Math.round(d.daily.temperature_2m_max[ti])    : null;
+      ST.weather.todayLowTemp  = ti >= 0 ? Math.round(d.daily.temperature_2m_min[ti])    : null;
+      ST.weather.todayHighHum  = ti >= 0 ? d.daily.relative_humidity_2m_max[ti]          : null;
+      ST.weather.todayLowHum   = ti >= 0 ? d.daily.relative_humidity_2m_min[ti]          : null;
+      ST.weatherDaily = {
+        dates:   d.daily.time,
+        tempMax: d.daily.temperature_2m_max.map(v => Math.round(v)),
+        tempMin: d.daily.temperature_2m_min.map(v => Math.round(v)),
+        humMax:  d.daily.relative_humidity_2m_max,
+        humMin:  d.daily.relative_humidity_2m_min
+      };
+    }
+    if (ST.tab === 'summary') renderSummary();
   } catch(e) { console.warn('weather:', e); }
   clearTimeout(ST.wtTimer);
   ST.wtTimer = setTimeout(fetchWeather, 10 * 60 * 1000);
+}
+
+function getOutdoorForDate(dateISO) {
+  if (!ST.weatherDaily) return null;
+  const idx = ST.weatherDaily.dates.indexOf(dateISO);
+  if (idx < 0) return null;
+  return {
+    tempMax: ST.weatherDaily.tempMax[idx],
+    tempMin: ST.weatherDaily.tempMin[idx],
+    humMax:  ST.weatherDaily.humMax[idx],
+    humMin:  ST.weatherDaily.humMin[idx]
+  };
 }
 
 async function geocodeZip(zip) {
@@ -1028,7 +1067,7 @@ function switchTab(tab) {
   ['summary','chart','history','settings'].forEach(t => {
     document.getElementById('tab-'+t).hidden = t !== tab;
   });
-  document.getElementById('add-btn').classList.toggle('hidden', tab === 'settings');
+  document.getElementById('add-btn').classList.toggle('hidden', tab === 'settings' || tab === 'summary');
   if (tab !== 'summary') hideIOSBanner();
   if (tab === 'summary')  renderSummary();
   if (tab === 'chart')    renderChart();
@@ -1063,6 +1102,7 @@ function renderSummary() {
   const locations = [...(ST.home?.locations||[])].sort();
   let html = '';
 
+  /* Greeting */
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const name = ST.user?.user_metadata?.name?.split(' ')[0] || '';
@@ -1078,12 +1118,22 @@ function renderSummary() {
       <span class="outdoor-humidity">${w.humidity}<span style="font-size:18px;opacity:.65">%</span></span>
       <span class="outdoor-temp">${w.temp}°F</span>
     </div>`;
+    if (w.todayHighTemp !== null && w.todayHighTemp !== undefined) {
+      html += `<div class="outdoor-forecast">
+        <span class="of-item">🌡️ High <strong>${w.todayHighTemp}°F</strong> / Low <strong>${w.todayLowTemp}°F</strong></span>
+        <span class="of-item">💧 High <strong>${w.todayHighHum}%</strong> / Low <strong>${w.todayLowHum}%</strong></span>
+      </div>`;
+    }
   } else {
     html += '<div class="outdoor-loading">Fetching outdoor conditions…</div>';
   }
   html += '</div>';
 
+  /* Add Reading button — directly below outdoor card */
+  html += `<button class="btn btn-primary" onclick="openDrawer()" style="margin-bottom:14px">+ Add Reading</button>`;
+
   /* Location cards */
+  const todayOD = getOutdoorForDate(todayISO());
   for (const loc of locations) {
     const lrx = ST.readings.filter(r => r.location_name === loc);
     const latest = lrx[0];
@@ -1100,7 +1150,8 @@ function renderSummary() {
     </div>`;
     if (latest) {
       html += `<div class="hum-big ${st.cls}">${latest.humidity}<span class="unit">%</span></div>`;
-      if (lo !== null) html += `<div class="reading-range">Today: Low ${lo}% — High ${hi}%</div>`;
+      if (lo !== null) html += `<div class="reading-range">Today indoor: Low ${lo}% — High ${hi}%</div>`;
+      if (todayOD) html += `<div class="reading-range" style="color:rgba(59,130,246,.8)">Outdoor: ${todayOD.tempMin}°–${todayOD.tempMax}°F &nbsp;·&nbsp; Humidity ${todayOD.humMin}%–${todayOD.humMax}%</div>`;
       html += `<div class="reading-time">${timeAgo(latest.recorded_at)}</div>`;
     } else {
       html += '<div class="no-readings">No readings yet — tap + to add one</div>';
@@ -1112,8 +1163,137 @@ function renderSummary() {
   html += `<div class="info-box">💡 <strong>Ideal indoor humidity: 30–50%.</strong>
     Above 60% encourages mold growth. Below 30% causes dry air discomfort.</div>`;
 
+  /* 7-day chart card */
+  html += `<div class="card" style="margin-top:14px;padding-bottom:14px">
+    <div class="outdoor-label" style="margin-bottom:12px">📈 Last 7 Days — Indoor vs Outdoor</div>
+    <div style="position:relative;height:220px">
+      <canvas id="summary-chart-canvas"></canvas>
+    </div>
+    <div id="summary-chart-legend" class="chart-legend" style="padding:10px 4px 4px"></div>
+    <div id="summary-7day-table"></div>
+  </div>`;
+
   el.innerHTML = html;
   maybeShowIOSBanner();
+  renderSummaryChart();
+}
+
+function renderSummaryChart() {
+  const canvas = document.getElementById('summary-chart-canvas');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  if (ST.summaryChart) { ST.summaryChart.destroy(); ST.summaryChart = null; }
+
+  const last7days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    last7days.push(d.toISOString().slice(0, 10));
+  }
+
+  const locs = [...(ST.home?.locations || [])].sort();
+  const labels = last7days.map(d => {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+  });
+
+  const datasets = locs.map((loc, i) => ({
+    label: loc,
+    data: last7days.map(date => {
+      const dayRx = ST.readings.filter(r => r.location_name === loc && r.recorded_at.slice(0,10) === date);
+      if (!dayRx.length) return null;
+      return Math.round(dayRx.reduce((s, r) => s + r.humidity, 0) / dayRx.length);
+    }),
+    borderColor: PALETTE[i % PALETTE.length],
+    backgroundColor: PALETTE[i % PALETTE.length] + '22',
+    borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
+    tension: 0.3, spanGaps: true, fill: false, order: 1
+  }));
+
+  /* Outdoor humidity shaded band */
+  if (ST.weatherDaily) {
+    const outHumMax = last7days.map(d => { const od = getOutdoorForDate(d); return od ? od.humMax : null; });
+    const outHumMin = last7days.map(d => { const od = getOutdoorForDate(d); return od ? od.humMin : null; });
+    datasets.push({
+      label: 'Outdoor High',
+      data: outHumMax,
+      borderColor: 'rgba(59,130,246,0.35)', backgroundColor: 'transparent',
+      borderDash: [5, 4], borderWidth: 1.5,
+      pointRadius: 0, fill: false, tension: 0.2, spanGaps: true, order: 2
+    });
+    datasets.push({
+      label: 'Outdoor Low',
+      data: outHumMin,
+      borderColor: 'rgba(59,130,246,0.35)', backgroundColor: 'rgba(59,130,246,0.09)',
+      borderDash: [5, 4], borderWidth: 1.5,
+      pointRadius: 0, fill: '-1', tension: 0.2, spanGaps: true, order: 2
+    });
+  }
+
+  ST.summaryChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 350 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(19,25,41,.97)',
+          titleColor: '#e8eeff', bodyColor: '#94a3b8',
+          borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+          cornerRadius: 8, padding: 10,
+          filter: item => item.dataset.label !== 'Outdoor High' && item.dataset.label !== 'Outdoor Low'
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,.04)' },
+          ticks: { color: '#94a3b8', font: { size: 10, family: 'DM Mono' }, maxRotation: 30 }
+        },
+        y: {
+          min: 0, max: 100,
+          grid: {
+            color: ctx => {
+              if (ctx.tick.value===30||ctx.tick.value===50) return 'rgba(59,130,246,.28)';
+              return 'rgba(255,255,255,.04)';
+            }
+          },
+          ticks: { color: '#94a3b8', font: { size: 10, family: 'DM Mono' }, callback: v => v+'%', stepSize: 20 }
+        }
+      }
+    }
+  });
+
+  /* Legend */
+  const leg = document.getElementById('summary-chart-legend');
+  if (leg) {
+    let lh = locs.map((loc, i) => `<div class="legend-item"><div class="legend-dot" style="background:${PALETTE[i%PALETTE.length]}"></div><span>${esc(loc)}</span></div>`).join('');
+    if (ST.weatherDaily) lh += `<div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.35);border:1px dashed rgba(59,130,246,0.55)"></div><span>Outdoor Humidity Range</span></div>`;
+    leg.innerHTML = lh;
+  }
+
+  /* Per-day outdoor context table */
+  const tbl = document.getElementById('summary-7day-table');
+  if (tbl) {
+    if (ST.weatherDaily) {
+      let th = `<div style="margin-top:14px"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:10px">`;
+      for (const date of last7days) {
+        const od = getOutdoorForDate(date);
+        const dt = new Date(date + 'T12:00:00');
+        const lbl = dt.toLocaleDateString('en-US', { weekday: 'short' });
+        th += `<div style="background:rgba(59,130,246,.07);border-radius:6px;padding:5px 2px">
+          <div style="font-weight:700;color:var(--sub);margin-bottom:3px">${lbl}</div>
+          ${od
+            ? `<div style="color:var(--text)">🌡️${od.tempMax}°/${od.tempMin}°</div><div style="color:var(--accent)">💧${od.humMax}%/${od.humMin}%</div>`
+            : `<div style="color:var(--muted)">—</div>`}
+        </div>`;
+      }
+      th += '</div></div>';
+      tbl.innerHTML = th;
+    } else {
+      tbl.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0">Outdoor data loading…</div>';
+    }
+  }
 }
 
 /* ══ CHART TAB ══════════════════════════════════════════════ */
@@ -1181,8 +1361,28 @@ function drawChart() {
     backgroundColor: PALETTE[i%PALETTE.length]+'22',
     borderWidth: 2.5,
     pointRadius: 4, pointHoverRadius: 6,
-    tension: 0.3, spanGaps: true, fill: false
+    tension: 0.3, spanGaps: true, fill: false, order: 1
   }));
+
+  /* Outdoor humidity shaded band */
+  if (ST.weatherDaily) {
+    const outHumMax = times.map(ts => { const od = getOutdoorForDate(ts.slice(0,10)); return od ? od.humMax : null; });
+    const outHumMin = times.map(ts => { const od = getOutdoorForDate(ts.slice(0,10)); return od ? od.humMin : null; });
+    datasets.push({
+      label: 'Outdoor High',
+      data: outHumMax,
+      borderColor: 'rgba(59,130,246,0.35)', backgroundColor: 'transparent',
+      borderDash: [5, 4], borderWidth: 1.5,
+      pointRadius: 0, fill: false, tension: 0, spanGaps: true, order: 2
+    });
+    datasets.push({
+      label: 'Outdoor Low',
+      data: outHumMin,
+      borderColor: 'rgba(59,130,246,0.35)', backgroundColor: 'rgba(59,130,246,0.09)',
+      borderDash: [5, 4], borderWidth: 1.5,
+      pointRadius: 0, fill: '-1', tension: 0, spanGaps: true, order: 2
+    });
+  }
 
   const labels = times.map(ts=>{
     const d = new Date(ts);
@@ -1204,7 +1404,18 @@ function drawChart() {
           backgroundColor: 'rgba(19,25,41,.97)',
           titleColor: '#e8eeff', bodyColor: '#94a3b8',
           borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
-          cornerRadius: 8, padding: 10
+          cornerRadius: 8, padding: 10,
+          filter: item => item.dataset.label !== 'Outdoor High' && item.dataset.label !== 'Outdoor Low',
+          callbacks: {
+            afterBody: items => {
+              if (!items.length) return [];
+              const ts = times[items[0].dataIndex];
+              if (!ts) return [];
+              const od = getOutdoorForDate(ts.slice(0,10));
+              if (!od) return [];
+              return [`Outdoor: ${od.tempMin}°–${od.tempMax}°F · Humidity ${od.humMin}%–${od.humMax}%`];
+            }
+          }
         }
       },
       scales: {
@@ -1228,11 +1439,13 @@ function drawChart() {
 
   const leg = document.getElementById('chart-legend');
   if (leg) {
-    leg.innerHTML = locs.map((loc,i)=>`
+    let lh = locs.map((loc,i)=>`
       <div class="legend-item">
         <div class="legend-dot" style="background:${PALETTE[i%PALETTE.length]}"></div>
         <span>${esc(loc)}</span>
       </div>`).join('');
+    if (ST.weatherDaily) lh += `<div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.35);border:1px dashed rgba(59,130,246,0.55)"></div><span>Outdoor Humidity Range</span></div>`;
+    leg.innerHTML = lh;
   }
 }
 
@@ -1254,7 +1467,11 @@ function renderHistory() {
 
   let html = topBtn;
   for (const date of Object.keys(byDate).sort().reverse()) {
-    html += `<div class="day-group"><div class="day-hdr">${fmtDate(date+'T12:00:00')}</div>`;
+    const od = getOutdoorForDate(date);
+    const odHtml = od
+      ? `<span style="float:right;font-size:10px;color:rgba(59,130,246,.75);font-family:'DM Mono',monospace">🌡️ ${od.tempMin}°–${od.tempMax}° · 💧 ${od.humMin}%–${od.humMax}%</span>`
+      : '';
+    html += `<div class="day-group"><div class="day-hdr">${fmtDate(date+'T12:00:00')}${odHtml}</div>`;
     for (const r of byDate[date]) {
       const st = humStatus(r.humidity);
       html += `<div class="r-row" onclick="openEditModal('${r.id}')">
@@ -1394,7 +1611,7 @@ function renderSettings() {
     <div class="s-card">
       <div class="s-item" style="flex-direction:column;align-items:flex-start;gap:8px">
         <p style="font-size:13px;color:var(--sub);line-height:1.7">
-          Track Humidity helps you monitor indoor humidity across your home.
+          TrackHumidity helps you monitor indoor humidity across your home.
           Ideal indoor humidity is 30–50%.
         </p>
         <p style="font-size:11px;color:var(--muted)">Version 2.0.0</p>
@@ -1531,7 +1748,7 @@ async function saveReading() {
 async function doShare() {
   const url = 'https://trackhumidity.app';
   if (navigator.share) {
-    try { await navigator.share({ title:'Track Humidity', text:'Monitor your indoor humidity with this app', url }); return; }
+    try { await navigator.share({ title:'TrackHumidity', text:'Monitor your indoor humidity with this app', url }); return; }
     catch(e) { if (e.name==='AbortError') return; }
   }
   try { await navigator.clipboard.writeText(url); toast('App link copied to clipboard!'); }
@@ -1626,7 +1843,7 @@ function generateReport() {
 </table>
 
 <div class="footer">
-  Generated by Track Humidity — trackhumidity.app<br>
+  Generated by TrackHumidity — trackhumidity.app<br>
   Powered by Dream App Lab — <a href="https://dreamapplab.com">dreamapplab.com</a>
 </div>
 <script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script>

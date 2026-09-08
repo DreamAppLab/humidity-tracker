@@ -2,8 +2,8 @@ export default function handler(req, res) {
   const homeId = req.query.home || '';
 
   const manifest = {
-    name: 'Track Humidity',
-    short_name: 'Humidity',
+    name: 'TrackHumidity',
+    short_name: 'TrackHumidity',
     description: 'Monitor indoor humidity across your home',
     start_url: homeId ? `/?home=${homeId}` : '/?source=pwa',
     display: 'standalone',
