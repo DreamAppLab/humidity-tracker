@@ -1063,6 +1063,11 @@ function renderSummary() {
   const locations = [...(ST.home?.locations||[])].sort();
   let html = '';
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const name = ST.user?.user_metadata?.name?.split(' ')[0] || '';
+  html += `<div style="font-size:22px;font-weight:700;margin-bottom:16px">${greeting}${name ? ', '+name : ''}! 👋</div>`;
+
   /* Outdoor card */
   html += '<div class="card outdoor-card">';
   html += '<div class="outdoor-label">🌤 Outdoor Conditions</div>';
