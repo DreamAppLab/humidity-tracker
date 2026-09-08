@@ -316,7 +316,6 @@
       border-radius: 10px; padding: 12px; margin-bottom: 10px;
     }
     .loc-row-name { font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 8px; }
-    .r-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .inp-wrap { position: relative; }
     .inp-wrap input { padding-right: 30px; }
     .inp-unit {
@@ -402,7 +401,6 @@
     .r-hum.ideal   { color: var(--success); }
     .r-hum.warning { color: var(--warning); }
     .r-hum.danger  { color: var(--danger); }
-    .r-temp { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); min-width: 44px; text-align: right; }
 
     /* ─── Settings tab ───────────────────────────────── */
     .s-section { margin-bottom: 24px; }
@@ -678,10 +676,6 @@
     <div class="f-row">
       <label class="f-label">Humidity (%)</label>
       <input type="number" id="em-hum" min="0" max="100" step="1">
-    </div>
-    <div class="f-row">
-      <label class="f-label">Temperature (°F) — optional</label>
-      <input type="number" id="em-temp" min="-50" max="150" step="0.1" placeholder="—">
     </div>
     <div class="f-row">
       <label class="f-label">Time</label>
@@ -1627,7 +1621,6 @@ function openEditModal(id) {
   if (!r) return;
   ST.editId = id; ST.editDate = r.recorded_at.slice(0,10);
   document.getElementById('em-hum').value  = r.humidity;
-  document.getElementById('em-temp').value = r.temperature??'';
   document.getElementById('em-time').value = toHHMM(r.recorded_at);
   document.getElementById('edit-modal').hidden = false;
 }
@@ -1640,20 +1633,17 @@ function closeEditModal() {
 async function saveEdit() {
   const id = ST.editId; if (!id) return;
   const hum  = parseFloat(document.getElementById('em-hum').value);
-  const temp = document.getElementById('em-temp').value.trim();
   const time = document.getElementById('em-time').value;
   if (isNaN(hum)||hum<0||hum>100) { toast('Enter a valid humidity (0–100)'); return; }
   const recorded_at = new Date(`${ST.editDate}T${time}:00`).toISOString();
   try {
     await sb('PATCH', `humidity_readings?id=eq.${id}`, {
       humidity: Math.round(hum),
-      temperature: temp ? parseFloat(temp) : null,
       recorded_at
     });
     const idx = ST.readings.findIndex(r=>r.id===id);
     if (idx>=0) {
       ST.readings[idx].humidity    = Math.round(hum);
-      ST.readings[idx].temperature = temp ? parseFloat(temp) : null;
       ST.readings[idx].recorded_at = recorded_at;
       ST.readings.sort((a,b)=>new Date(b.recorded_at)-new Date(a.recorded_at));
     }
@@ -1823,18 +1813,14 @@ function openDrawer() {
     ${locs.map(loc=>`
     <div class="loc-row">
       <div class="loc-row-name">${esc(loc)}</div>
-      <div class="r-inputs">
-        <div class="inp-wrap">
-          <input type="number" class="r-hum" data-loc="${esc(loc)}" placeholder="—" min="0" max="100" step="1" inputmode="numeric">
-          <span class="inp-unit">%</span>
-        </div>
-        <div class="inp-wrap">
-          <input type="number" class="r-tmp" data-loc="${esc(loc)}" placeholder="—" min="-50" max="150" step="0.1" inputmode="decimal">
-          <span class="inp-unit">°F</span>
-        </div>
+      <div class="inp-wrap" style="margin-top:4px">
+        <input type="number" class="r-hum" data-loc="${esc(loc)}" placeholder="—" min="0" max="100" step="1" inputmode="numeric">
+        <span class="inp-unit">%</span>
       </div>
     </div>`).join('')}
-    <button class="btn btn-primary" style="margin-top:6px" onclick="saveReading()">Save Reading</button>`;
+    <button id="save-reading-btn" class="btn btn-primary" style="margin-top:6px">Save Reading</button>`;
+
+  document.getElementById('save-reading-btn').addEventListener('click', saveReading);
 
   document.getElementById('drawer').classList.add('open');
   document.getElementById('overlay').classList.add('vis');
@@ -1848,13 +1834,15 @@ function closeDrawer() {
 }
 
 async function saveReading() {
+  if (!ST.homeId) { toast('Home not loaded — please reload the app'); return; }
+
   const date = document.getElementById('r-date').value;
   const time = document.getElementById('r-time').value;
   if (!date||!time) { toast('Please set date and time'); return; }
   const recorded_at = new Date(`${date}T${time}:00`).toISOString();
 
-  const humEls = document.querySelectorAll('.r-hum');
-  const tmpEls = document.querySelectorAll('.r-tmp');
+  const body    = document.getElementById('drw-body');
+  const humEls  = body.querySelectorAll('.r-hum');
   const entries = [];
 
   for (let i=0; i<humEls.length; i++) {
@@ -1862,11 +1850,13 @@ async function saveReading() {
     if (!hv) continue;
     const h = parseInt(hv,10);
     if (isNaN(h)||h<0||h>100) { toast(`Invalid humidity for ${humEls[i].dataset.loc}`); return; }
-    const tv = tmpEls[i].value.trim();
-    entries.push({ home_id:ST.homeId, location_name:humEls[i].dataset.loc, humidity:h, temperature:tv?parseFloat(tv):null, recorded_at });
+    entries.push({ home_id: ST.homeId, location_name: humEls[i].dataset.loc, humidity: h, recorded_at });
   }
 
   if (!entries.length) { toast('Enter at least one humidity value'); return; }
+
+  const btn = document.getElementById('save-reading-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
   try {
     const saved = await sb('POST','humidity_readings',entries,{'Prefer':'return=representation'});
@@ -1876,7 +1866,11 @@ async function saveReading() {
     toast(`${entries.length} reading${entries.length!==1?'s':''} saved!`);
     if (ST.tab==='summary') renderSummary();
     if (ST.tab==='history') renderHistory();
-  } catch(e) { toast('Failed to save readings'); console.error(e); }
+  } catch(e) {
+    toast('Failed to save readings');
+    console.error('saveReading error:', e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Reading'; }
+  }
 }
 
 /* ══ SHARE ══════════════════════════════════════════════════ */
@@ -1967,13 +1961,12 @@ function generateReport() {
 
 <h2>All Readings</h2>
 <table>
-  <tr><th>Date</th><th>Time</th><th>Location</th><th>Humidity</th><th>Temp (°F)</th></tr>
+  <tr><th>Date</th><th>Time</th><th>Location</th><th>Humidity</th></tr>
   ${filtered.map(r=>`<tr>
     <td>${r.recorded_at.slice(0,10)}</td>
     <td>${fmtTime(r.recorded_at)}</td>
     <td>${esc(r.location_name)}</td>
     <td>${r.humidity}%</td>
-    <td>${r.temperature!=null?r.temperature+'°':'—'}</td>
   </tr>`).join('')}
 </table>
 
