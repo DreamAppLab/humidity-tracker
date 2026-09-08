@@ -903,6 +903,7 @@ async function signIn() {
 
   ST.user = data.user;
   btn.disabled = false; btn.textContent = 'Sign In →';
+  console.log('session:', data.session);
   await loadUserHome();
 }
 
@@ -927,6 +928,7 @@ async function loadUserHome() {
 
   try {
     const homes = await sb('GET', `humidity_homes?user_id=eq.${session.user.id}&select=*`);
+    console.log('home found:', homes);
 
     if (!homes?.length) {
       // New user — needs ZIP setup
