@@ -1661,16 +1661,14 @@ async function init() {
 
   showScreen('loading');
 
-  // Check for an existing Supabase Auth session
-  const { data: { session } } = await supabaseClient.auth.getSession();
-
-  if (!session) {
-    showScreen('welcome');
-    return;
-  }
-
-  // Session found — load the user's home
-  await loadUserHome();
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
+      ST.user = session.user;
+      await loadUserHome();
+    } else {
+      showScreen('welcome');
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
