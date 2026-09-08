@@ -1914,10 +1914,17 @@ function openExportModal() {
       <input type="checkbox" value="${esc(loc)}" checked>
       ${esc(loc)}
     </label>`).join('');
-  document.getElementById('export-modal').hidden = false;
+  /* Clear both the hidden attribute AND any inline display style set by init() */
+  const modal = document.getElementById('export-modal');
+  modal.hidden = false;
+  modal.style.display = '';
 }
 
-function closeExportModal() { document.getElementById('export-modal').hidden = true; }
+function closeExportModal() {
+  const modal = document.getElementById('export-modal');
+  modal.hidden = true;
+  modal.style.display = 'none';
+}
 
 /* Quote a CSV field — wrap in double-quotes and escape internal quotes */
 function csvField(v) {
@@ -1927,82 +1934,108 @@ function csvField(v) {
     : s;
 }
 
-function generateReport() {
-  const from    = document.getElementById('exp-from').value;
-  const to      = document.getElementById('exp-to').value;
-  const selLocs = [...document.querySelectorAll('#exp-locs input:checked')].map(el=>el.value);
+async function generateReport() {
+  console.log('export clicked — from generateReport()');
+
+  let from, to, selLocs;
+  try {
+    from    = document.getElementById('exp-from').value;
+    to      = document.getElementById('exp-to').value;
+    selLocs = [...document.querySelectorAll('#exp-locs input:checked')].map(el => el.value);
+    console.log('export params:', { from, to, selLocs });
+  } catch (e) {
+    console.error('export: failed to read modal inputs', e);
+    alert('Export failed: could not read form inputs. See console for details.');
+    return;
+  }
+
   if (!selLocs.length) { toast('Select at least one location'); return; }
 
-  /* All data comes directly from in-memory ST.readings — no storage API needed */
-  const filtered = ST.readings.filter(r => {
-    const etDate = toEasternDateISO(r.recorded_at);
-    return etDate >= from && etDate <= to && selLocs.includes(r.location_name);
-  }).sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+  /* ── 1. Ensure we have readings — fall back to a fresh Supabase fetch ── */
+  let readings = ST.readings || [];
+  console.log('export: ST.readings length =', readings.length);
 
-  const summary = selLocs.map(loc => {
-    const rx = filtered.filter(r => r.location_name === loc);
-    if (!rx.length) return { loc, count: 0, min: '', max: '', avg: '' };
-    const hs = rx.map(r => r.humidity);
-    return {
-      loc, count: rx.length,
-      min: Math.min(...hs),
-      max: Math.max(...hs),
-      avg: Math.round(hs.reduce((a, b) => a + b, 0) / hs.length)
-    };
-  });
-
-  const now = new Date().toLocaleString('en-US', { timeZone: TZ });
-
-  /* ── Build CSV entirely in memory ── */
-  const rows = [];
-
-  rows.push(['TrackHumidity — Humidity Report']);
-  rows.push(['ZIP Code', ST.home?.zip_code || 'N/A']);
-  rows.push(['Date Range', `${from} to ${to}`]);
-  rows.push(['Generated (Eastern)', now]);
-  rows.push([]);
-
-  rows.push(['SUMMARY BY LOCATION']);
-  rows.push(['Location', 'Readings', 'Min %', 'Max %', 'Average %']);
-  for (const s of summary) {
-    rows.push([s.loc, s.count, s.min === '' ? '' : s.min, s.max === '' ? '' : s.max, s.avg === '' ? '' : s.avg]);
-  }
-  rows.push([]);
-
-  rows.push(['ALL READINGS']);
-  rows.push(['Date (Eastern)', 'Time (Eastern)', 'Location', 'Humidity %']);
-  for (const r of filtered) {
-    rows.push([
-      toEasternDateISO(r.recorded_at),
-      fmtTime(r.recorded_at),
-      r.location_name,
-      r.humidity
-    ]);
+  if (!readings.length && ST.homeId) {
+    console.log('export: ST.readings empty — fetching from Supabase');
+    try {
+      const fetched = await sb('GET', `humidity_readings?home_id=eq.${ST.homeId}&select=*&order=recorded_at.desc`);
+      readings = fetched || [];
+      ST.readings = readings; // cache for the rest of the session
+      console.log('export: fetched', readings.length, 'readings from Supabase');
+    } catch (e) {
+      console.error('export: Supabase fetch failed', e);
+      alert('Export failed: could not load readings. Check your connection and try again.');
+      return;
+    }
   }
 
-  const csv = rows.map(row => row.map(csvField).join(',')).join('\r\n');
+  /* ── 2. Filter ── */
+  let filtered;
+  try {
+    filtered = readings.filter(r => {
+      const etDate = toEasternDateISO(r.recorded_at);
+      return etDate >= from && etDate <= to && selLocs.includes(r.location_name);
+    }).sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+    console.log('export: filtered to', filtered.length, 'readings');
+  } catch (e) {
+    console.error('export: filter step failed', e);
+    alert('Export failed: error filtering readings. See console for details.');
+    return;
+  }
 
-  /* ── Download via Blob URL — no pop-ups, no storage access ── */
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `humidity-report-${from}-to-${to}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  /* Revoke after a tick so the download has time to start */
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  if (!filtered.length) {
+    alert('No readings found for the selected date range and locations.');
+    return;
+  }
+
+  /* ── 3. Build CSV ── */
+  let csv;
+  try {
+    const rows = [];
+    rows.push(['Date', 'Time (Eastern)', 'Location', 'Humidity %']);
+    for (const r of filtered) {
+      rows.push([
+        toEasternDateISO(r.recorded_at),
+        fmtTime(r.recorded_at),
+        r.location_name,
+        r.humidity
+      ]);
+    }
+    csv = rows.map(row => row.map(csvField).join(',')).join('\r\n');
+    console.log('export: CSV built, length =', csv.length, 'chars,', filtered.length, 'data rows');
+  } catch (e) {
+    console.error('export: CSV build failed', e);
+    alert('Export failed: could not build CSV. See console for details.');
+    return;
+  }
+
+  /* ── 4. Blob download — no pop-ups, no storage access ── */
+  try {
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `humidity-${from}-to-${to}.csv`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    console.log('export: download triggered for', a.download);
+  } catch (e) {
+    console.error('export: Blob/download step failed', e);
+    alert('Export failed: could not trigger download. See console for details.');
+    return;
+  }
 
   closeExportModal();
-  toast('CSV downloaded!');
+  toast(`Downloaded ${filtered.length} readings as CSV`);
 }
 
 /* ══ INIT ════════════════════════════════════════════════════ */
 async function init() {
-  const exportModal = document.getElementById('export-modal');
-  exportModal.hidden = true;
-  exportModal.style.display = 'none';
+  /* Ensure both modals start fully hidden (hidden attr + inline style) */
+  closeExportModal();
   const editModal = document.getElementById('edit-modal');
   editModal.hidden = true;
   editModal.style.display = 'none';
