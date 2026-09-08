@@ -901,22 +901,11 @@ async function signIn() {
     return;
   }
 
-  ST.user = data.user;
   btn.disabled = false; btn.textContent = 'Sign In →';
-  console.log('session:', data.session);
-  await loadUserHome();
 }
 
 async function signOut() {
   await supabaseClient.auth.signOut();
-  ST.user     = null;
-  ST.home     = null;
-  ST.homeId   = null;
-  ST.readings = [];
-  ST.weather  = null;
-  clearTimeout(ST.wtTimer);
-  if (ST.chart) { ST.chart.destroy(); ST.chart = null; }
-  showScreen('welcome');
 }
 
 /* ══ LOAD HOME AFTER AUTH ════════════════════════════════════ */
@@ -1661,11 +1650,19 @@ async function init() {
 
   showScreen('loading');
 
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    ST.user = session.user;
+    await loadUserHome();
+  } else {
+    showScreen('welcome');
+  }
+
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
+    if (event === 'SIGNED_IN' && session) {
       ST.user = session.user;
       await loadUserHome();
-    } else {
+    } else if (event === 'SIGNED_OUT') {
       showScreen('welcome');
     }
   });
