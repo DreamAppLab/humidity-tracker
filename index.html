@@ -1473,17 +1473,16 @@ function renderHistory() {
   let html = topBtn;
   for (const date of Object.keys(byDate).sort().reverse()) {
     const od = getOutdoorForDate(date);
-    const odHtml = od
-      ? `<span style="float:right;font-size:10px;color:rgba(59,130,246,.75);font-family:'DM Mono',monospace">🌡️ ${od.tempMin}°–${od.tempMax}° · 💧 ${od.humMin}%–${od.humMax}%</span>`
+    const odBadge = od
+      ? `<span style="font-size:10px;color:rgba(59,130,246,.75);font-family:'DM Mono',monospace;white-space:nowrap">🌡️ ${od.tempMin}°–${od.tempMax}° · 💧 ${od.humMin}%–${od.humMax}%</span>`
       : '';
-    html += `<div class="day-group"><div class="day-hdr">${fmtDate(date+'T12:00:00')}${odHtml}</div>`;
+    html += `<div class="day-group"><div class="day-hdr" style="display:flex;justify-content:space-between;align-items:baseline"><span>${fmtDate(date+'T12:00:00')}</span>${odBadge}</div>`;
     for (const r of byDate[date]) {
       const st = humStatus(r.humidity);
       html += `<div class="r-row" onclick="openEditModal('${r.id}')">
         <span class="r-time">${fmtTime(r.recorded_at)}</span>
         <span class="r-loc">${esc(r.location_name)}</span>
         <span class="r-hum ${st.cls}">${r.humidity}%</span>
-        <span class="r-temp">${r.temperature!=null?r.temperature+'°':'—'}</span>
       </div>`;
     }
     html += '</div>';
