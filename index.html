@@ -775,10 +775,8 @@ function wxIcon(code) {
 
 /* ══ SUPABASE REST ══════════════════════════════════════════ */
 async function sb(method, path, body, extra = {}) {
-  // Use the authenticated user's JWT when available, fall back to anon key
   const { data: { session } } = await supabaseClient.auth.getSession();
   const token = session?.access_token || SUPABASE_KEY;
-
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: {
