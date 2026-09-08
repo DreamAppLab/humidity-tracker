@@ -182,13 +182,13 @@
     }
 
     /* ─── Outdoor card ───────────────────────────────── */
-    .outdoor-card { border-color: rgba(59,130,246,.22); }
+    .outdoor-card { border-color: rgba(59,130,246,.22); text-align: center; }
     .outdoor-label {
       font-size: 11px; font-weight: 700;
       text-transform: uppercase; letter-spacing: .08em;
       color: var(--accent); margin-bottom: 10px;
     }
-    .outdoor-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .outdoor-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
     .weather-icon { font-size: 34px; line-height: 1; }
     .outdoor-humidity {
       font-size: 34px; font-weight: 700;
@@ -197,7 +197,7 @@
     .outdoor-temp { font-size: 15px; color: var(--sub); font-family: 'DM Mono', monospace; }
     .outdoor-loading { color: var(--muted); font-size: 13px; }
     .outdoor-forecast {
-      display: flex; flex-wrap: wrap; gap: 6px 18px;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px;
       margin-top: 9px; font-size: 13px; color: var(--sub);
       font-family: 'DM Mono', monospace;
     }
@@ -1067,7 +1067,7 @@ function switchTab(tab) {
   ['summary','chart','history','settings'].forEach(t => {
     document.getElementById('tab-'+t).hidden = t !== tab;
   });
-  document.getElementById('add-btn').classList.toggle('hidden', tab === 'settings' || tab === 'summary');
+  document.getElementById('add-btn').classList.add('hidden'); /* FAB hidden on all tabs — use inline button on Summary */
   if (tab !== 'summary') hideIOSBanner();
   if (tab === 'summary')  renderSummary();
   if (tab === 'chart')    renderChart();
