@@ -704,7 +704,13 @@ async function geocodeZip(zip) {
 
 /* ══ SCREENS ════════════════════════════════════════════════ */
 function showScreen(name) {
-  document.getElementById('loading-screen').hidden = name !== 'loading';
+  // Use inline style to hide the loading screen — the CSS rule
+  // `#loading-screen { display: flex }` (ID specificity 1-0-0) beats the UA
+  // stylesheet's `[hidden] { display: none }` (0-1-0), so .hidden alone never
+  // actually hides it.  Inline style always wins.
+  const ls = document.getElementById('loading-screen');
+  ls.hidden = name !== 'loading';
+  ls.style.display = name === 'loading' ? '' : 'none';
   document.getElementById('zip-screen').hidden     = name !== 'zip';
   document.getElementById('loc-screen').hidden     = name !== 'location';
   document.getElementById('app').hidden            = name !== 'app';
