@@ -1139,7 +1139,7 @@ function dismissIOSBanner() {
 /* ══ SUMMARY TAB ════════════════════════════════════════════ */
 function renderSummary() {
   const el = document.getElementById('tab-summary');
-  const locations = [...(ST.home?.locations||[])].sort();
+  const locations = [...(ST.home?.locations||[])];
   let html = '';
 
   /* Greeting */
@@ -1236,7 +1236,7 @@ function renderSummaryChart() {
     last7days.push(toEasternDateISO(d));
   }
 
-  const locs = [...(ST.home?.locations || [])].sort();
+  const locs = [...(ST.home?.locations || [])];
   const labels = last7days.map(d => {
     const dt = new Date(d + 'T12:00:00Z');
     return dt.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short', month: 'numeric', day: 'numeric' });
@@ -1368,7 +1368,7 @@ function renderChart() {
     return;
   }
 
-  const locs = [...(ST.home?.locations||[])].sort();
+  const locs = [...(ST.home?.locations||[])];
 
   el.innerHTML = `
     <div class="chart-section-title">All Sensors — Overview</div>
@@ -1531,7 +1531,7 @@ function drawSensorChart(loc, i) {
 function drawChart() {
   if (typeof Chart === 'undefined') return;
   const readings = getChartReadings(ST.chartRange);
-  const locs = [...(ST.home?.locations||[])].sort();
+  const locs = [...(ST.home?.locations||[])];
   const times = [...new Set(readings.map(r=>r.recorded_at))].sort();
 
   const canvas = document.getElementById('chart-canvas');
