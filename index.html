@@ -868,6 +868,13 @@ async function signUp() {
     return;
   }
 
+  if (!data.user?.identities?.length) {
+    errEl.textContent = 'An account with this email already exists. Please sign in instead.';
+    errEl.hidden = false;
+    btn.disabled = false; btn.textContent = 'Create Account →';
+    return;
+  }
+
   ST.user = data.user;
   btn.disabled = false; btn.textContent = 'Create Account →';
   showScreen('zip');
@@ -933,12 +940,15 @@ async function loadUserHome() {
     const readings = await sb('GET', `humidity_readings?home_id=eq.${ST.homeId}&select=*&order=recorded_at.desc`);
     ST.readings = readings || [];
 
+    if (ST.home.zip_code && ST.home.locations?.length > 0) {
+      showScreen('app'); renderApp(); fetchWeather();
+      return;
+    }
+
     if (!ST.home.zip_code) {
       showScreen('zip');
-    } else if (!ST.home.locations?.length) {
-      showScreen('location');
     } else {
-      showScreen('app'); renderApp(); fetchWeather();
+      showScreen('location');
     }
   } catch(e) {
     console.error('loadUserHome:', e);
