@@ -1385,6 +1385,12 @@ function generateReport() {
   else toast('Allow pop-ups to generate the report');
 }
 
+/* ══ MANIFEST ═══════════════════════════════════════════════ */
+function updateManifest(homeId) {
+  const link = document.querySelector('link[rel="manifest"]');
+  if (link) link.href = `/api/manifest?home=${homeId}`;
+}
+
 /* ══ INIT ════════════════════════════════════════════════════ */
 async function init() {
   const exportModal = document.getElementById('export-modal');
@@ -1425,6 +1431,7 @@ async function init() {
     ST.home     = homes[0];
     ST.readings = readings || [];
     saveHomeId(homeId);
+    updateManifest(homeId);
 
     if (!ST.home.zip_code) {
       showScreen('zip');
