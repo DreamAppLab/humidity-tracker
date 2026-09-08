@@ -719,6 +719,7 @@
 /* ── CONFIG ─────────────────────────────────────────────── */
 const SUPABASE_URL = 'https://pqwcduezhmesodjjplaa.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxd2NkdWV6aG1lc29kampwbGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTg2NzAsImV4cCI6MjEwNDM5NDY3MH0.JlKC99XxXSsIxNmzGzb0VGmHWSmqYlav55OPYlXLucU';
+const TZ = 'America/New_York'; // St. Augustine, FL — all display timestamps in Eastern time
 
 /* ── Supabase Auth client ────────────────────────────────── */
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -762,24 +763,35 @@ function timeAgo(ts) {
   return days === 1 ? 'Yesterday' : days+'d ago';
 }
 
+/* Return YYYY-MM-DD in Eastern time for any UTC timestamp/string */
+function toEasternDateISO(ts) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(ts));
+}
+
+/* Return HH:MM (24-hour) in Eastern time */
+function toEasternHHMM(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', {
+    timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false
+  });
+}
+
 function fmtTime(ts) {
-  return new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  return new Date(ts).toLocaleTimeString('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit',hour12:true});
 }
 
 function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+  return new Date(ts).toLocaleDateString('en-US',{timeZone:TZ,weekday:'long',month:'short',day:'numeric'});
 }
 
 function toHHMM(ts) {
-  const d = new Date(ts);
-  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  return toEasternHHMM(ts);
 }
 
-function todayISO() { return new Date().toISOString().slice(0,10); }
-function nowHHMM()  {
-  const d = new Date();
-  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
-}
+/* Today's date in Eastern time (YYYY-MM-DD) */
+function todayISO() { return toEasternDateISO(new Date()); }
+
+/* Current wall-clock time in Eastern (HH:MM, 24h) */
+function nowHHMM() { return toEasternHHMM(new Date()); }
 
 let _toastTimer;
 function toast(msg) {
@@ -1171,7 +1183,7 @@ function renderSummary() {
     const lrx = ST.readings.filter(r => r.location_name === loc);
     const latest = lrx[0];
     const today = todayISO();
-    const todayRx = lrx.filter(r => r.recorded_at.slice(0,10) === today);
+    const todayRx = lrx.filter(r => toEasternDateISO(r.recorded_at) === today);
     const lo = todayRx.length ? Math.min(...todayRx.map(r=>r.humidity)) : null;
     const hi = todayRx.length ? Math.max(...todayRx.map(r=>r.humidity)) : null;
     const st = latest ? humStatus(latest.humidity) : null;
@@ -1219,20 +1231,21 @@ function renderSummaryChart() {
 
   const last7days = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    last7days.push(d.toISOString().slice(0, 10));
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    last7days.push(toEasternDateISO(d));
   }
 
   const locs = [...(ST.home?.locations || [])].sort();
   const labels = last7days.map(d => {
-    const dt = new Date(d + 'T12:00:00');
-    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+    const dt = new Date(d + 'T12:00:00Z');
+    return dt.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short', month: 'numeric', day: 'numeric' });
   });
 
   const datasets = locs.map((loc, i) => ({
     label: loc,
     data: last7days.map(date => {
-      const dayRx = ST.readings.filter(r => r.location_name === loc && r.recorded_at.slice(0,10) === date);
+      const dayRx = ST.readings.filter(r => r.location_name === loc && toEasternDateISO(r.recorded_at) === date);
       if (!dayRx.length) return null;
       return Math.round(dayRx.reduce((s, r) => s + r.humidity, 0) / dayRx.length);
     }),
@@ -1312,8 +1325,8 @@ function renderSummaryChart() {
       let th = `<div style="margin-top:14px"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:10px">`;
       for (const date of last7days) {
         const od = getOutdoorForDate(date);
-        const dt = new Date(date + 'T12:00:00');
-        const lbl = dt.toLocaleDateString('en-US', { weekday: 'short' });
+        const dt = new Date(date + 'T12:00:00Z');
+        const lbl = dt.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' });
         th += `<div style="background:rgba(59,130,246,.07);border-radius:6px;padding:5px 2px">
           <div style="font-weight:700;color:var(--sub);margin-bottom:3px">${lbl}</div>
           ${od
@@ -1400,7 +1413,7 @@ function renderSensorStats(loc, i) {
   }
   const current = lrx[0];
   const today = todayISO();
-  const todayRx = lrx.filter(r => r.recorded_at.slice(0,10) === today);
+  const todayRx = lrx.filter(r => toEasternDateISO(r.recorded_at) === today);
   const todayHigh = todayRx.length ? Math.max(...todayRx.map(r=>r.humidity)) : null;
   const todayLow  = todayRx.length ? Math.min(...todayRx.map(r=>r.humidity)) : null;
   const cut7 = new Date(); cut7.setDate(cut7.getDate()-7);
@@ -1429,8 +1442,8 @@ function renderSensorStats(loc, i) {
 /* ── Per-sensor chart ──────────────────────────────────────── */
 function buildOutdoorBands(times) {
   if (!ST.weatherDaily) return [];
-  const outMax = times.map(ts => { const od=getOutdoorForDate(ts.slice(0,10)); return od?od.humMax:null; });
-  const outMin = times.map(ts => { const od=getOutdoorForDate(ts.slice(0,10)); return od?od.humMin:null; });
+  const outMax = times.map(ts => { const od=getOutdoorForDate(toEasternDateISO(ts)); return od?od.humMax:null; });
+  const outMin = times.map(ts => { const od=getOutdoorForDate(toEasternDateISO(ts)); return od?od.humMin:null; });
   return [
     { label:'Outdoor High', data:outMax, borderColor:'rgba(59,130,246,0.35)', backgroundColor:'transparent',
       borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, tension:0, spanGaps:true, order:2 },
@@ -1450,7 +1463,7 @@ function chartTooltipOpts(times) {
       afterTitle: items => {
         if (!items.length) return [];
         const ts = times[items[0].dataIndex]; if (!ts) return [];
-        const od = getOutdoorForDate(ts.slice(0,10)); if (!od) return [];
+        const od = getOutdoorForDate(toEasternDateISO(ts)); if (!od) return [];
         return [`🌡️ ${od.tempMax}°/${od.tempMin}°F  ·  💧 ${od.humMax}%/${od.humMin}%`];
       }
     }
@@ -1487,8 +1500,10 @@ function drawSensorChart(loc, i) {
   }, ...buildOutdoorBands(times)];
 
   const labels = times.map(ts => {
-    const d = new Date(ts);
-    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+    const etDate = toEasternDateISO(ts);
+    const [, mm, dd] = etDate.split('-');
+    const etTime = toEasternHHMM(ts);
+    return `${parseInt(mm)}/${parseInt(dd)} ${etTime}`;
   });
 
   ST.sensorCharts[loc] = new Chart(canvas, {
@@ -1542,8 +1557,10 @@ function drawChart() {
   ];
 
   const labels = times.map(ts=>{
-    const d = new Date(ts);
-    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+    const etDate = toEasternDateISO(ts);
+    const [, mm, dd] = etDate.split('-');
+    const etTime = toEasternHHMM(ts);
+    return `${parseInt(mm)}/${parseInt(dd)} ${etTime}`;
   });
 
   /* ST.chart already destroyed at the top of renderChart() */
@@ -1591,7 +1608,7 @@ function renderHistory() {
 
   const byDate = {};
   for (const r of ST.readings) {
-    const d = r.recorded_at.slice(0,10);
+    const d = toEasternDateISO(r.recorded_at);
     (byDate[d]||(byDate[d]=[])).push(r);
   }
 
@@ -1601,7 +1618,7 @@ function renderHistory() {
     const odBadge = od
       ? `<span style="font-size:10px;color:rgba(59,130,246,.75);font-family:'DM Mono',monospace;white-space:nowrap">🌡️ ${od.tempMin}°–${od.tempMax}° · 💧 ${od.humMin}%–${od.humMax}%</span>`
       : '';
-    html += `<div class="day-group"><div class="day-hdr" style="display:flex;justify-content:space-between;align-items:baseline"><span>${fmtDate(date+'T12:00:00')}</span>${odBadge}</div>`;
+    html += `<div class="day-group"><div class="day-hdr" style="display:flex;justify-content:space-between;align-items:baseline"><span>${fmtDate(date+'T12:00:00Z')}</span>${odBadge}</div>`;
     for (const r of byDate[date]) {
       const st = humStatus(r.humidity);
       html += `<div class="r-row" onclick="openEditModal('${r.id}')">
@@ -1619,9 +1636,10 @@ function renderHistory() {
 function openEditModal(id) {
   const r = ST.readings.find(x=>x.id===id);
   if (!r) return;
-  ST.editId = id; ST.editDate = r.recorded_at.slice(0,10);
+  ST.editId = id;
+  ST.editDate = toEasternDateISO(r.recorded_at); // Eastern local date for round-trip save
   document.getElementById('em-hum').value  = r.humidity;
-  document.getElementById('em-time').value = toHHMM(r.recorded_at);
+  document.getElementById('em-time').value = toHHMM(r.recorded_at); // now returns ET HH:MM
   document.getElementById('edit-modal').hidden = false;
 }
 
@@ -1907,12 +1925,9 @@ function generateReport() {
   const selLocs = [...document.querySelectorAll('#exp-locs input:checked')].map(el=>el.value);
   if (!selLocs.length) { toast('Select at least one location'); return; }
 
-  const dFrom = new Date(from+'T00:00:00');
-  const dTo   = new Date(to+'T23:59:59');
-
   const filtered = ST.readings.filter(r=>{
-    const d = new Date(r.recorded_at);
-    return d>=dFrom && d<=dTo && selLocs.includes(r.location_name);
+    const etDate = toEasternDateISO(r.recorded_at);
+    return etDate >= from && etDate <= to && selLocs.includes(r.location_name);
   }).sort((a,b)=>new Date(b.recorded_at)-new Date(a.recorded_at));
 
   const summary = selLocs.map(loc=>{
@@ -1963,7 +1978,7 @@ function generateReport() {
 <table>
   <tr><th>Date</th><th>Time</th><th>Location</th><th>Humidity</th></tr>
   ${filtered.map(r=>`<tr>
-    <td>${r.recorded_at.slice(0,10)}</td>
+    <td>${toEasternDateISO(r.recorded_at)}</td>
     <td>${fmtTime(r.recorded_at)}</td>
     <td>${esc(r.location_name)}</td>
     <td>${r.humidity}%</td>
