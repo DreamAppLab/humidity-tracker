@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     /* ─── Variables ─────────────────────────────────── */
     :root {
@@ -70,7 +71,7 @@
     }
     .loading-text { color: var(--muted); font-size: 14px; font-weight: 500; }
 
-    /* ─── Setup screens ──────────────────────────────── */
+    /* ─── Setup / Auth screens ───────────────────────── */
     .setup-screen {
       min-height: 100dvh;
       display: flex; align-items: center; justify-content: center;
@@ -86,8 +87,19 @@
     .setup-card h1 { font-size: 21px; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
     .setup-card > p { color: var(--sub); font-size: 14px; line-height: 1.65; margin-bottom: 26px; }
 
+    /* Welcome screen extras */
+    .welcome-logo { font-size: 48px; text-align: center; margin-bottom: 12px; }
+    .welcome-title { font-size: 26px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .welcome-sub { color: var(--sub); font-size: 14px; text-align: center; line-height: 1.6; margin-bottom: 32px; }
+    .auth-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: 12px; }
+    .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .auth-link { display: block; text-align: center; font-size: 13px; color: var(--muted); margin-top: 18px; }
+    .auth-link a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .auth-link a:active { opacity: .75; }
+
     /* ─── Form elements ──────────────────────────────── */
-    input[type=text], input[type=number], input[type=date], input[type=time] {
+    input[type=text], input[type=number], input[type=date],
+    input[type=time], input[type=email], input[type=password] {
       width: 100%;
       background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
@@ -372,19 +384,15 @@
       -webkit-tap-highlight-color: transparent;
     }
     .s-btn.danger { color: var(--danger); background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.2); }
-    .link-block {
-      font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted);
-      word-break: break-all; line-height: 1.6; padding: 0 14px 14px;
-    }
+    .add-loc-row { display: flex; gap: 8px; padding: 12px 14px 14px; }
+    .add-loc-row input { flex: 1; }
+    .add-loc-row button { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.25); border-radius: 8px; color: var(--accent); font-family: inherit; font-size: 13px; font-weight: 600; padding: 0 16px; cursor: pointer; white-space: nowrap; }
     .install-box {
       background: rgba(255,255,255,.03); border: 1px solid var(--border);
       border-radius: 12px; padding: 14px; margin-top: 6px;
     }
     .install-box p { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 6px; }
     .install-box p:last-child { margin-bottom: 0; }
-    .add-loc-row { display: flex; gap: 8px; padding: 12px 14px 14px; }
-    .add-loc-row input { flex: 1; }
-    .add-loc-row button { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.25); border-radius: 8px; color: var(--accent); font-family: inherit; font-size: 13px; font-weight: 600; padding: 0 16px; cursor: pointer; white-space: nowrap; }
 
     /* ─── Modal ──────────────────────────────────────── */
     .modal-bg {
@@ -454,6 +462,64 @@
 <div id="loading-screen">
   <div class="loading-dots"><span></span><span></span><span></span></div>
   <p class="loading-text">Loading your tracker...</p>
+</div>
+
+<!-- ════════════════════════ WELCOME ════════════════════════ -->
+<div id="welcome-screen" class="setup-screen" hidden>
+  <div class="setup-card">
+    <div class="welcome-logo">💧</div>
+    <div class="welcome-title">Track Humidity</div>
+    <div class="welcome-sub">Monitor indoor humidity across your home.<br>Keep your family comfortable and mold-free.</div>
+    <button class="btn btn-primary" onclick="showScreen('signup')">Create Account</button>
+    <div class="auth-divider">or</div>
+    <button class="btn btn-secondary" style="width:100%" onclick="showScreen('signin')">Sign In</button>
+  </div>
+</div>
+
+<!-- ════════════════════════ SIGN UP ════════════════════════ -->
+<div id="signup-screen" class="setup-screen" hidden>
+  <div class="setup-card">
+    <h1>👋 Create Account</h1>
+    <p>Set up your free humidity tracker account.</p>
+    <div id="su-err" class="err-banner" hidden></div>
+    <div class="f-row">
+      <label class="f-label">Your Name</label>
+      <input type="text" id="su-name" placeholder="Jane Smith" autocomplete="name">
+    </div>
+    <div class="f-row">
+      <label class="f-label">Email</label>
+      <input type="email" id="su-email" placeholder="jane@example.com" autocomplete="email">
+    </div>
+    <div class="f-row">
+      <label class="f-label">Password (min 6 characters)</label>
+      <input type="password" id="su-pass" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <div class="f-row">
+      <label class="f-label">Confirm Password</label>
+      <input type="password" id="su-conf" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" id="su-btn" onclick="signUp()">Create Account →</button>
+    <p class="auth-link">Already have an account? <a href="#" onclick="showScreen('signin');return false">Sign In</a></p>
+  </div>
+</div>
+
+<!-- ════════════════════════ SIGN IN ════════════════════════ -->
+<div id="signin-screen" class="setup-screen" hidden>
+  <div class="setup-card">
+    <h1>👤 Sign In</h1>
+    <p>Welcome back! Sign in to view your readings.</p>
+    <div id="si-err" class="err-banner" hidden></div>
+    <div class="f-row">
+      <label class="f-label">Email</label>
+      <input type="email" id="si-email" placeholder="jane@example.com" autocomplete="email">
+    </div>
+    <div class="f-row">
+      <label class="f-label">Password</label>
+      <input type="password" id="si-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')signIn()">
+    </div>
+    <button class="btn btn-primary" id="si-btn" onclick="signIn()">Sign In →</button>
+    <p class="auth-link">Don't have an account? <a href="#" onclick="showScreen('signup');return false">Create one</a></p>
+  </div>
 </div>
 
 <!-- ════════════════════════ ZIP SETUP ══════════════════════ -->
@@ -575,39 +641,30 @@
 <script>
 /* ── CONFIG ─────────────────────────────────────────────── */
 const SUPABASE_URL = 'https://pqwcduezhmesodjjplaa.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxd2NkdWV6aG1lc29kampwbGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTg2NzAsImV4cCI6MjEwNDM5NDY3MH0.JlKC99XxXSsIxNmzGzb0VGmHWSmqYlav55OPYlXLucU'; // ← Replace with your anon key
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxd2NkdWV6aG1lc29kampwbGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTg2NzAsImV4cCI6MjEwNDM5NDY3MH0.JlKC99XxXSsIxNmzGzb0VGmHWSmqYlav55OPYlXLucU';
+
+/* ── Supabase Auth client ────────────────────────────────── */
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ── STATE ──────────────────────────────────────────────── */
 const ST = {
-  homeId: null,
-  home:   null,   // { id, zip_code, lat, lng, locations: [] }
+  homeId:   null,
+  home:     null,   // { id, zip_code, lat, lng, locations: [], user_id }
   readings: [],
-  tab:    'summary',
-  weather: null,
-  wtTimer: null,
-  chart:  null,
+  tab:      'summary',
+  weather:  null,
+  wtTimer:  null,
+  chart:    null,
   chartRange: '7entries',
-  editId: null,
-  editDate: null
+  editId:   null,
+  editDate: null,
+  user:     null    // supabase User object
 };
 
 const tempLocs = []; // for location-setup screen
 
 /* ── PALETTE (chart lines) ──────────────────────────────── */
 const PALETTE = ['#3B82F6','#22c55e','#eab308','#ef4444','#a855f7','#ec4899','#14b8a6','#f97316'];
-
-/* ══ HOME-ID HELPERS (cookie + localStorage for iOS PWA) ════ */
-function getHomeId() {
-  const ls = localStorage.getItem('hh_home_id');
-  if (ls) return ls;
-  const match = document.cookie.match(/(?:^|;\s*)hh_home_id=([^;]+)/);
-  return match ? match[1] : null;
-}
-
-function saveHomeId(id) {
-  localStorage.setItem('hh_home_id', id);
-  document.cookie = `hh_home_id=${id}; max-age=31536000; path=/; SameSite=Lax`;
-}
 
 /* ══ UTILITIES ══════════════════════════════════════════════ */
 function esc(s) {
@@ -672,12 +729,16 @@ function wxIcon(code) {
   return '⛈️';
 }
 
-/* ══ SUPABASE ════════════════════════════════════════════════ */
+/* ══ SUPABASE REST ══════════════════════════════════════════ */
 async function sb(method, path, body, extra = {}) {
+  // Use the authenticated user's JWT when available, fall back to anon key
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const token = session?.access_token || SUPABASE_KEY;
+
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: {
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': `Bearer ${token}`,
       'apikey': SUPABASE_KEY,
       'Content-Type': 'application/json',
       ...extra
@@ -719,6 +780,9 @@ async function geocodeZip(zip) {
 function showScreen(name) {
   const screens = {
     'loading':  document.getElementById('loading-screen'),
+    'welcome':  document.getElementById('welcome-screen'),
+    'signup':   document.getElementById('signup-screen'),
+    'signin':   document.getElementById('signin-screen'),
     'zip':      document.getElementById('zip-screen'),
     'location': document.getElementById('loc-screen'),
     'app':      document.getElementById('app')
@@ -730,9 +794,118 @@ function showScreen(name) {
   }
 }
 
+/* ══ AUTH ════════════════════════════════════════════════════ */
+async function signUp() {
+  const name  = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const pass  = document.getElementById('su-pass').value;
+  const conf  = document.getElementById('su-conf').value;
+  const errEl = document.getElementById('su-err');
+  errEl.hidden = true;
+
+  if (!name)               { errEl.textContent = 'Please enter your name.'; errEl.hidden = false; return; }
+  if (!email)              { errEl.textContent = 'Please enter your email.'; errEl.hidden = false; return; }
+  if (pass.length < 6)    { errEl.textContent = 'Password must be at least 6 characters.'; errEl.hidden = false; return; }
+  if (pass !== conf)      { errEl.textContent = 'Passwords do not match.'; errEl.hidden = false; return; }
+
+  const btn = document.getElementById('su-btn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { name } }
+  });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.hidden = false;
+    btn.disabled = false; btn.textContent = 'Create Account →';
+    return;
+  }
+
+  ST.user = data.user;
+  btn.disabled = false; btn.textContent = 'Create Account →';
+  showScreen('zip');
+}
+
+async function signIn() {
+  const email = document.getElementById('si-email').value.trim();
+  const pass  = document.getElementById('si-pass').value;
+  const errEl = document.getElementById('si-err');
+  errEl.hidden = true;
+
+  if (!email) { errEl.textContent = 'Please enter your email.'; errEl.hidden = false; return; }
+  if (!pass)  { errEl.textContent = 'Please enter your password.'; errEl.hidden = false; return; }
+
+  const btn = document.getElementById('si-btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.hidden = false;
+    btn.disabled = false; btn.textContent = 'Sign In →';
+    return;
+  }
+
+  ST.user = data.user;
+  btn.disabled = false; btn.textContent = 'Sign In →';
+  await loadUserHome();
+}
+
+async function signOut() {
+  await supabaseClient.auth.signOut();
+  ST.user     = null;
+  ST.home     = null;
+  ST.homeId   = null;
+  ST.readings = [];
+  ST.weather  = null;
+  clearTimeout(ST.wtTimer);
+  if (ST.chart) { ST.chart.destroy(); ST.chart = null; }
+  showScreen('welcome');
+}
+
+/* ══ LOAD HOME AFTER AUTH ════════════════════════════════════ */
+async function loadUserHome() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) { showScreen('welcome'); return; }
+
+  ST.user = session.user;
+
+  try {
+    const homes = await sb('GET', `humidity_homes?user_id=eq.${session.user.id}&select=*`);
+
+    if (!homes?.length) {
+      // New user — needs ZIP setup
+      showScreen('zip');
+      return;
+    }
+
+    ST.home   = homes[0];
+    ST.homeId = homes[0].id;
+
+    const readings = await sb('GET', `humidity_readings?home_id=eq.${ST.homeId}&select=*&order=recorded_at.desc`);
+    ST.readings = readings || [];
+
+    if (!ST.home.zip_code) {
+      showScreen('zip');
+    } else if (!ST.home.locations?.length) {
+      showScreen('location');
+    } else {
+      showScreen('app'); renderApp(); fetchWeather();
+    }
+  } catch(e) {
+    console.error('loadUserHome:', e);
+    toast('Failed to load your data. Please try again.');
+    showScreen('welcome');
+  }
+}
+
 /* ══ ZIP SETUP ══════════════════════════════════════════════ */
 async function saveZip() {
-  const zip = document.getElementById('zip-input').value.trim();
+  const zip   = document.getElementById('zip-input').value.trim();
   const errEl = document.getElementById('zip-err');
   errEl.hidden = true;
   if (!/^\d{5}$/.test(zip)) {
@@ -744,12 +917,17 @@ async function saveZip() {
   try {
     const geo = await geocodeZip(zip);
     if (!geo) throw new Error('not found');
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const userId = session?.user?.id;
+
     if (!ST.homeId) {
-      // First-time setup: create the home record now that we have a valid ZIP
-      const data = await sb('POST', 'humidity_homes', { zip_code: zip, lat: geo.lat, lng: geo.lng }, { 'Prefer': 'return=representation' });
+      // First-time: create home linked to this user
+      const data = await sb('POST', 'humidity_homes',
+        { zip_code: zip, lat: geo.lat, lng: geo.lng, user_id: userId },
+        { 'Prefer': 'return=representation' });
       ST.homeId = data[0].id;
       ST.home   = data[0];
-      history.replaceState(null, '', `/?home=${ST.homeId}`);
     } else {
       // Changing ZIP on an existing home
       await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { zip_code: zip, lat: geo.lat, lng: geo.lng });
@@ -765,7 +943,7 @@ async function saveZip() {
 
 /* ══ LOCATION SETUP ══════════════════════════════════════════ */
 function addLocTemp() {
-  const inp = document.getElementById('loc-add-input');
+  const inp  = document.getElementById('loc-add-input');
   const name = inp.value.trim();
   if (!name) return;
   if (tempLocs.includes(name)) { toast('Already added'); return; }
@@ -1076,25 +1254,28 @@ async function confirmDelete() {
 
 /* ══ SETTINGS TAB ═══════════════════════════════════════════ */
 function renderSettings() {
-  const el = document.getElementById('tab-settings');
-  const homeUrl = `${location.origin}/?home=${ST.homeId}`;
+  const el   = document.getElementById('tab-settings');
   const locs = ST.home?.locations || [];
+  const userName  = ST.user?.user_metadata?.name || 'You';
+  const userEmail = ST.user?.email || '';
 
   el.innerHTML = `
-  <!-- YOUR TRACKER -->
+  <!-- ACCOUNT -->
   <div class="s-section">
-    <div class="s-section-title">Your Tracker</div>
+    <div class="s-section-title">Account</div>
     <div class="s-card">
       <div class="s-item">
-        <span class="s-item-label">Your Link</span>
-        <button class="s-btn" onclick="copyUrl()">Copy</button>
-        <button class="s-btn" onclick="doShare()">Share</button>
+        <span class="s-item-label">Name</span>
+        <span class="s-item-value">${esc(userName)}</span>
       </div>
-      <div class="link-block">${esc(homeUrl)}</div>
-    </div>
-    <div class="install-box">
-      <p><strong>Add to Home Screen (iOS):</strong> Tap the Share icon (↑) → "Add to Home Screen"</p>
-      <p><strong>Add to Home Screen (Android):</strong> Tap the menu (⋮) → "Add to Home Screen" or "Install App"</p>
+      <div class="s-item">
+        <span class="s-item-label">Email</span>
+        <span class="s-item-value">${esc(userEmail)}</span>
+      </div>
+      <div class="s-item">
+        <span class="s-item-label">Sign Out</span>
+        <button class="s-btn danger" onclick="signOut()">Sign Out</button>
+      </div>
     </div>
   </div>
 
@@ -1127,6 +1308,15 @@ function renderSettings() {
     </div>
   </div>
 
+  <!-- INSTALL -->
+  <div class="s-section">
+    <div class="s-section-title">Install App</div>
+    <div class="install-box">
+      <p><strong>Add to Home Screen (iOS):</strong> Tap the Share icon (↑) → "Add to Home Screen"</p>
+      <p><strong>Add to Home Screen (Android):</strong> Tap the menu (⋮) → "Add to Home Screen" or "Install App"</p>
+    </div>
+  </div>
+
   <!-- ABOUT -->
   <div class="s-section">
     <div class="s-section-title">About</div>
@@ -1136,7 +1326,7 @@ function renderSettings() {
           Track Humidity helps you monitor indoor humidity across your home.
           Ideal indoor humidity is 30–50%.
         </p>
-        <p style="font-size:11px;color:var(--muted)">Version 1.0.0</p>
+        <p style="font-size:11px;color:var(--muted)">Version 2.0.0</p>
       </div>
     </div>
   </div>
@@ -1147,21 +1337,13 @@ function renderSettings() {
   </div>`;
 }
 
-function copyUrl() {
-  const url = `${location.origin}/?home=${ST.homeId}`;
-  navigator.clipboard.writeText(url)
-    .then(()=>toast('Link copied to clipboard!'))
-    .catch(()=>toast('Could not copy — try manually'));
-}
-
 async function renameLoc(idx) {
   const old = ST.home.locations[idx];
-  const nw = prompt(`Rename "${old}" to:`, old);
+  const nw  = prompt(`Rename "${old}" to:`, old);
   if (!nw||nw.trim()===old) return;
   const newLocs = [...ST.home.locations]; newLocs[idx] = nw.trim();
   try {
     await sb('PATCH', `humidity_homes?id=eq.${ST.homeId}`, { locations: newLocs });
-    // update reading records too
     const ids = ST.readings.filter(r=>r.location_name===old).map(r=>r.id);
     await Promise.all(ids.map(id=>sb('PATCH',`humidity_readings?id=eq.${id}`,{location_name:nw.trim()})));
     ST.home.locations = newLocs;
@@ -1190,7 +1372,7 @@ async function deleteLoc(idx) {
 }
 
 async function addNewLoc() {
-  const inp = document.getElementById('new-loc-inp');
+  const inp  = document.getElementById('new-loc-inp');
   const name = inp?.value?.trim();
   if (!name) return;
   if (ST.home.locations.includes(name)) { toast('Location already exists'); return; }
@@ -1276,12 +1458,12 @@ async function saveReading() {
 
 /* ══ SHARE ══════════════════════════════════════════════════ */
 async function doShare() {
-  const url = `${location.origin}/?home=${ST.homeId}`;
+  const url = 'https://trackhumidity.app';
   if (navigator.share) {
-    try { await navigator.share({ title:'My Humidity Tracker', text:'Track indoor humidity with me', url }); return; }
+    try { await navigator.share({ title:'Track Humidity', text:'Monitor your indoor humidity with this app', url }); return; }
     catch(e) { if (e.name==='AbortError') return; }
   }
-  try { await navigator.clipboard.writeText(url); toast('Link copied! Anyone with this link can view your readings.'); }
+  try { await navigator.clipboard.writeText(url); toast('App link copied to clipboard!'); }
   catch(e) { toast('Could not copy link'); }
 }
 
@@ -1303,8 +1485,8 @@ function openExportModal() {
 function closeExportModal() { document.getElementById('export-modal').hidden = true; }
 
 function generateReport() {
-  const from = document.getElementById('exp-from').value;
-  const to   = document.getElementById('exp-to').value;
+  const from    = document.getElementById('exp-from').value;
+  const to      = document.getElementById('exp-to').value;
   const selLocs = [...document.querySelectorAll('#exp-locs input:checked')].map(el=>el.value);
   if (!selLocs.length) { toast('Select at least one location'); return; }
 
@@ -1385,12 +1567,6 @@ function generateReport() {
   else toast('Allow pop-ups to generate the report');
 }
 
-/* ══ MANIFEST ═══════════════════════════════════════════════ */
-function updateManifest(homeId) {
-  const link = document.querySelector('link[rel="manifest"]');
-  if (link) link.href = `/api/manifest?home=${homeId}`;
-}
-
 /* ══ INIT ════════════════════════════════════════════════════ */
 async function init() {
   const exportModal = document.getElementById('export-modal');
@@ -1399,51 +1575,23 @@ async function init() {
   const editModal = document.getElementById('edit-modal');
   editModal.hidden = true;
   editModal.style.display = 'none';
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('SW:',e));
   }
 
   showScreen('loading');
 
-  const params = new URLSearchParams(location.search);
-  let homeId = params.get('home');
+  // Check for an existing Supabase Auth session
+  const { data: { session } } = await supabaseClient.auth.getSession();
 
-  try {
-    if (!homeId) {
-      homeId = getHomeId();
-      if (!homeId) {
-        showScreen('zip');
-        return;
-      }
-    }
-
-    ST.homeId = homeId;
-
-    const [homes, readings] = await Promise.all([
-      sb('GET',`humidity_homes?id=eq.${homeId}&select=*`),
-      sb('GET',`humidity_readings?home_id=eq.${homeId}&select=*&order=recorded_at.desc`)
-    ]);
-
-    if (!homes?.length) {
-      history.replaceState(null,'','/'); location.reload(); return;
-    }
-
-    ST.home     = homes[0];
-    ST.readings = readings || [];
-    saveHomeId(homeId);
-    updateManifest(homeId);
-
-    if (!ST.home.zip_code) {
-      showScreen('zip');
-    } else if (!ST.home.locations?.length) {
-      showScreen('location');
-    } else {
-      showScreen('app'); renderApp(); fetchWeather();
-    }
-
-  } catch(e) {
-    console.error('init:', e);
+  if (!session) {
+    showScreen('welcome');
+    return;
   }
+
+  // Session found — load the user's home
+  await loadUserHome();
 }
 
 document.addEventListener('DOMContentLoaded', init);
