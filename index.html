@@ -1408,17 +1408,20 @@ function drawChart() {
         tooltip: {
           backgroundColor: 'rgba(19,25,41,.97)',
           titleColor: '#e8eeff', bodyColor: '#94a3b8',
+          footerColor: 'rgba(99,162,255,0.9)',
+          footerMarginTop: 10,
+          footerFont: { family: 'DM Mono', size: 12, weight: '500' },
           borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
-          cornerRadius: 8, padding: 10,
+          cornerRadius: 8, padding: 12,
           filter: item => item.dataset.label !== 'Outdoor High' && item.dataset.label !== 'Outdoor Low',
           callbacks: {
-            afterBody: items => {
+            footer: items => {
               if (!items.length) return [];
               const ts = times[items[0].dataIndex];
               if (!ts) return [];
               const od = getOutdoorForDate(ts.slice(0,10));
               if (!od) return [];
-              return [`Outdoor: ${od.tempMin}°–${od.tempMax}°F · Humidity ${od.humMin}%–${od.humMax}%`];
+              return [`🌡️ Outdoor: ${od.tempMax}°–${od.tempMin}°F  ·  💧 ${od.humMax}%–${od.humMin}%`];
             }
           }
         }
