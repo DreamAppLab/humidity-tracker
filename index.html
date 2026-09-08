@@ -1391,8 +1391,11 @@ async function init() {
 
   try {
     if (!homeId) {
-      showScreen('zip');
-      return;
+      homeId = localStorage.getItem('hh_home_id');
+      if (!homeId) {
+        showScreen('zip');
+        return;
+      }
     }
 
     ST.homeId = homeId;
@@ -1408,6 +1411,7 @@ async function init() {
 
     ST.home     = homes[0];
     ST.readings = readings || [];
+    localStorage.setItem('hh_home_id', homeId);
 
     if (!ST.home.zip_code) {
       showScreen('zip');
