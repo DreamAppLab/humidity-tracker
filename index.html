@@ -1364,8 +1364,12 @@ function generateReport() {
 
 /* ══ INIT ════════════════════════════════════════════════════ */
 async function init() {
-  document.getElementById('export-modal').hidden = true;
-  document.getElementById('edit-modal').hidden = true;
+  const exportModal = document.getElementById('export-modal');
+  exportModal.hidden = true;
+  exportModal.style.display = 'none';
+  const editModal = document.getElementById('edit-modal');
+  editModal.hidden = true;
+  editModal.style.display = 'none';
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('SW:',e));
   }
