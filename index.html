@@ -1364,6 +1364,8 @@ function generateReport() {
 
 /* ══ INIT ════════════════════════════════════════════════════ */
 async function init() {
+  document.getElementById('export-modal').hidden = true;
+  document.getElementById('edit-modal').hidden = true;
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('SW:',e));
   }
