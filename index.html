@@ -1621,11 +1621,12 @@ function renderHistory() {
       : '';
     html += `<div class="day-group"><div class="day-hdr" style="display:flex;justify-content:space-between;align-items:baseline"><span>${fmtDate(date+'T12:00:00Z')}</span>${odBadge}</div>`;
     const dayReadings = [...byDate[date]].sort((a, b) => {
+      const timeDiff = new Date(b.recorded_at) - new Date(a.recorded_at);
+      if (timeDiff !== 0) return timeDiff;
+      // Same timestamp: sort by sensor order (matching Add Reading)
       const ai = sensorOrder.indexOf(a.location_name);
       const bi = sensorOrder.indexOf(b.location_name);
-      const sensorDiff = (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-      if (sensorDiff !== 0) return sensorDiff;
-      return new Date(b.recorded_at) - new Date(a.recorded_at);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
     for (const r of dayReadings) {
       const st = humStatus(r.humidity);
