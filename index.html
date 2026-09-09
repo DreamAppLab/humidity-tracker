@@ -1612,6 +1612,7 @@ function renderHistory() {
     (byDate[d]||(byDate[d]=[])).push(r);
   }
 
+  const sensorOrder = ST.home?.locations || [];
   let html = topBtn;
   for (const date of Object.keys(byDate).sort().reverse()) {
     const od = getOutdoorForDate(date);
@@ -1619,7 +1620,14 @@ function renderHistory() {
       ? `<span style="font-size:10px;color:rgba(59,130,246,.75);font-family:'DM Mono',monospace;white-space:nowrap">🌡️ ${od.tempMin}°–${od.tempMax}° · 💧 ${od.humMin}%–${od.humMax}%</span>`
       : '';
     html += `<div class="day-group"><div class="day-hdr" style="display:flex;justify-content:space-between;align-items:baseline"><span>${fmtDate(date+'T12:00:00Z')}</span>${odBadge}</div>`;
-    for (const r of byDate[date]) {
+    const dayReadings = [...byDate[date]].sort((a, b) => {
+      const ai = sensorOrder.indexOf(a.location_name);
+      const bi = sensorOrder.indexOf(b.location_name);
+      const sensorDiff = (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      if (sensorDiff !== 0) return sensorDiff;
+      return new Date(b.recorded_at) - new Date(a.recorded_at);
+    });
+    for (const r of dayReadings) {
       const st = humStatus(r.humidity);
       html += `<div class="r-row" onclick="openEditModal('${r.id}')">
         <span class="r-time">${fmtTime(r.recorded_at)}</span>
@@ -2201,7 +2209,8 @@ async function generateReport() {
   try {
     from    = document.getElementById('exp-from').value;
     to      = document.getElementById('exp-to').value;
-    selLocs = [...document.querySelectorAll('#exp-locs input:checked')].map(el => el.value);
+    const checkedSet = new Set([...document.querySelectorAll('#exp-locs input:checked')].map(el => el.value));
+    selLocs = (ST.home?.locations || []).filter(loc => checkedSet.has(loc));
     console.log('report params:', { from, to, selLocs });
   } catch(e) {
     console.error('report: failed reading form inputs', e);
@@ -2233,7 +2242,14 @@ async function generateReport() {
     filtered = readings.filter(r => {
       const d = toEasternDateISO(r.recorded_at);
       return d >= from && d <= to && selLocs.includes(r.location_name);
-    }).sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+    }).sort((a, b) => {
+      const dateDiff = new Date(b.recorded_at) - new Date(a.recorded_at);
+      if (dateDiff !== 0) return dateDiff;
+      // Same timestamp: sort by sensor order
+      const ai = selLocs.indexOf(a.location_name);
+      const bi = selLocs.indexOf(b.location_name);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
     console.log('report: filtered to', filtered.length, 'readings');
   } catch(e) {
     console.error('report: filter failed', e);
